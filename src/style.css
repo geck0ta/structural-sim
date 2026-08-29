@@ -363,6 +363,105 @@ button:focus-visible,
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
+/* ===== PHASE 3: Beam Lab ===== */
+
+.param-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 10px 0 6px;
+}
+
+select {
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg);
+  background: var(--glass-bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: none;
+  appearance: none;
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.result-row .num.warn {
+  color: #ff453a;
+  font-weight: 600;
+}
+
+.explain-block h3 {
+  margin: 12px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.explain-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+.explain-step code {
+  font: 11.5px/1.3 'SF Mono', ui-monospace, Menlo, monospace;
+  color: var(--accent);
+}
+
+.explain-step span {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+#engine-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #ff453a;
+  background: color-mix(in srgb, #ff453a 12%, var(--glass-bg));
+}
+
+/* chart host: timeline bawah jadi 3 diagram side-by-side */
+#timeline {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12px;
+  height: auto;
+  padding: 12px 14px;
+}
+
+.charts-row {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+
+.charts-row .minichart {
+  flex: 1;
+  height: 84px;
+  min-width: 0;
+  display: block;
+}
+
+.minichart {
+  overflow: visible;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1,29 +1,23 @@
 import './style.css';
 import { SceneManager } from './visualization/three/scene-manager';
-import { SimulationStore } from './core/simulation/store';
-import type { SimulationState } from './structural/models/types';
+import { BeamView } from './visualization/three/beam-3d';
+import { BeamAnim } from './visualization/animation/beam-anim';
+import { MiniChart, CHART_COLORS } from './visualization/diagrams/mini-chart';
+import { buildBeamPanel } from './ui/panels/beam-panel';
+import type { BeamParams } from './ui/panels/beam-panel';
+import { solveBeam } from './structural/beam/beam-solver';
+import type { BeamLoad, PointLoad } from './structural/beam/beam-solver';
+import type { ChartData } from './visualization/diagrams/mini-chart';
 import { MATERIALS } from './data/materials';
 import { SECTION_PRESETS } from './structural/models/section';
-import { SegmentedControl } from './ui/glass/segmented';
-import { IOSSlider } from './ui/glass/slider';
+import { fmtForce, fmtMoment, fmtLength } from './core/units';
 import { icon, ensureSprite } from './ui/glass/icons';
-import { fmtLength, fmtForce } from './core/units';
 
-// §19 PHASE 1 — shell: SceneManager + glass UI. Modul diisi fase berikutnya.
+// PHASE 3 — Lab Balok 3D: satu solver → 3D (medium utama) + 3 diagram SVG + panel hasil.
+// §12 single source of truth: solver dijalankan ulang saat param berubah; animasi
+// spring menghaluskan transisi; store flush sekali per frame.
 
-interface AppState extends SimulationState {
-  readonly module: 'mech' | 'math' | 'fem' | 'dyn' | 'loads' | 'model3d';
-  readonly mode: 'explore' | 'explain' | 'sim';
-}
-
-const MODULES = [
-  { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler' },
-  { id: 'math', label: 'Matematika', icon: 'sigma' },
-  { id: 'fem', label: 'FEM', icon: 'grid-3x3' },
-  { id: 'dyn', label: 'Gempa / Dinamika', icon: 'activity' },
-  { id: 'loads', label: 'Beban Lingkungan', icon: 'wind' },
-  { id: 'model3d', label: 'Model 3D', icon: 'boxes' },
-] as const;
+const RINGS = 101;
 
 async function main(): Promise<void> {
   await ensureSprite();
@@ -35,182 +29,196 @@ async function main(): Promise<void> {
   let sm: SceneManager;
   try {
     sm = new SceneManager(canvas);
-  } catch (err) {
-    // §8 — fallback WebGL gagal
+  } catch {
     const msg = document.createElement('div');
     msg.className = 'glass';
     msg.style.cssText = 'position:fixed;inset:auto 12px 12px 12px;padding:16px;z-index:20';
-    msg.textContent = 'WebGL tidak tersedia di browser ini — visualisasi 3D dimatikan. Diagram 2D tetap berfungsi.';
+    msg.textContent = 'WebGL tidak tersedia — visualisasi 3D dimatikan, diagram tetap berfungsi.';
     document.body.append(msg);
     return;
   }
 
-  const store = new SimulationStore<AppState>({
-    model: null,
-    time: 0,
-    module: 'mech',
-    mode: 'explore',
-  });
+  // ===== Parameter state (single source; panel dumb view) =====
+  const params: BeamParams = {
+    span: 6,
+    loadP: 20e3,
+    loadAt: 6,
+    materialId: 'steelS355',
+    sectionId: 'ipe300',
+    support: 'cantilever',
+  };
 
-  // ===== Sidebar rail =====
-  const sidebar = document.createElement('aside');
-  sidebar.id = 'sidebar';
-  sidebar.className = 'glass';
-  const nav = document.createElement('nav');
-  for (const m of MODULES) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'module-btn';
-    btn.append(icon(m.icon, 18));
-    const span = document.createElement('span');
-    span.textContent = m.label;
-    btn.append(span);
-    btn.setAttribute('aria-current', String(m.id === 'mech'));
-    btn.addEventListener('click', () => {
-      nav.querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', 'false'));
-      btn.setAttribute('aria-current', 'true');
-      store.set({ module: m.id });
-    });
-    nav.append(btn);
-  }
-  const brand = document.createElement('div');
-  brand.className = 'brand';
-  brand.append(icon('landmark', 18));
-  const brandText = document.createElement('span');
-  brandText.textContent = 'Structural Lab';
-  brand.append(brandText);
-  sidebar.append(brand, nav);
-  document.body.append(sidebar);
+  const section = (): typeof SECTION_PRESETS[number] => SECTION_PRESETS.find((s) => s.id === params.sectionId) ?? SECTION_PRESETS[0]!;
+  const material = (): (typeof MATERIALS)[string] => MATERIALS[params.materialId] ?? MATERIALS.steelS355;
 
-  // ===== Panel kanan: parameter contoh (preset beam §17) =====
-  const panel = document.createElement('aside');
-  panel.id = 'panel';
-  panel.className = 'glass';
-  const h = document.createElement('h2');
-  h.textContent = 'Mekanika Struktur';
-  const cap = document.createElement('p');
-  cap.className = 'caption';
-  cap.textContent = 'Preset: kantilever IPE300, beban titik ujung';
-  panel.append(h, cap);
+  // ===== 3D =====
+  const view = new BeamView(sm.scene);
+  const anim = new BeamAnim(RINGS);
 
-  // segmented Explore/Explain/Simulation
-  const seg = new SegmentedControl(
-    [
-      { value: 'explore', label: 'Explore' },
-      { value: 'explain', label: 'Explain' },
-      { value: 'sim', label: 'Simulation' },
-    ],
-    'explore',
-    (v) => store.set({ mode: v }),
-  );
-  panel.append(seg.el);
+  // ===== Diagrams =====
+  const charts = {
+    shear: new MiniChart('Gaya geser V(x)', CHART_COLORS.shear, 260, 64, fmtForce),
+    moment: new MiniChart('Momen M(x)', CHART_COLORS.moment, 260, 64, fmtMoment),
+    deflect: new MiniChart('Defleksi y(x)', CHART_COLORS.deflect, 260, 64, fmtLength),
+  };
 
-  // slider panjang (placeholder wiring ke store fase berikut; nilai sudah diformat unit §10)
-  const lengthRow = document.createElement('div');
-  lengthRow.className = 'param-row';
-  const lenLabel = document.createElement('label');
-  const lenText = document.createElement('span');
-  lenText.textContent = 'Panjang bentang';
-  const lenVal = document.createElement('span');
-  lenVal.className = 'val num';
-  lenLabel.append(lenText, lenVal);
-  const lenSlider = new IOSSlider(2, 10, 0.1, 6, (v) => fmtLength(v), (v) => {
-    lenVal.textContent = fmtLength(v);
-  }, 'Panjang bentang (m)');
-  lengthRow.append(lenLabel, lenSlider.el);
-  panel.append(lengthRow);
-  lenVal.textContent = fmtLength(6);
-
-  const loadRow = document.createElement('div');
-  loadRow.className = 'param-row';
-  const loadLabel = document.createElement('label');
-  const loadText = document.createElement('span');
-  loadText.textContent = 'Beban ujung P';
-  const loadVal = document.createElement('span');
-  loadVal.className = 'val num';
-  loadLabel.append(loadText, loadVal);
-  const loadSlider = new IOSSlider(0, 100, 1, 20, (v) => fmtForce(v * 1000), (v) => {
-    loadVal.textContent = fmtForce(v * 1000);
-  }, 'Beban ujung (kN)');
-  loadRow.append(loadLabel, loadSlider.el);
-  panel.append(loadRow);
-  loadVal.textContent = fmtForce(20e3);
-
-  // material info (dari data §9 — angka sungguhan dari SECTION_PRESETS)
-  const mat = MATERIALS.steelS355;
-  const sec = SECTION_PRESETS[0]; // IPE300
-  const matBlock = document.createElement('div');
-  matBlock.className = 'result-block';
-  matBlock.append(row('Material', mat.name));
-  matBlock.append(row('Penampang', sec.name));
-  matBlock.append(row('Iy', `${sig3m(sec.props.Iy)} mm⁴`));
-  matBlock.append(row('A', `${sig3m(sec.props.A)} mm²`));
-  const dis = document.createElement('div');
-  dis.className = 'disclaimer';
-  dis.textContent = 'Educational simulation — not a substitute for professional structural engineering design or verification.';
-  matBlock.append(dis);
-  matBlock.append(...[]);
-  panel.append(matBlock);
-
-  // ===== Timeline bawah (playback placeholder, fase berikut) =====
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
   timeline.className = 'glass';
-  const controls = document.createElement('div');
-  controls.className = 'controls';
-  const playBtn = document.createElement('button');
-  playBtn.type = 'button';
-  playBtn.className = 'ghost-btn';
-  playBtn.setAttribute('aria-label', 'Play');
-  playBtn.append(icon('play', 16));
-  playBtn.addEventListener('click', () => {
-    const playing = playBtn.getAttribute('aria-pressed') === 'true';
-    playBtn.setAttribute('aria-pressed', String(!playing));
-    playBtn.replaceChildren(icon(playing ? 'play' : 'pause', 16));
-  });
-  playBtn.setAttribute('aria-pressed', 'false');
-  const resetBtn = document.createElement('button');
-  resetBtn.type = 'button';
-  resetBtn.className = 'ghost-btn';
-  resetBtn.setAttribute('aria-label', 'Restart');
-  resetBtn.append(icon('rotate-ccw', 16));
-  controls.append(playBtn, resetBtn);
-  timeline.append(controls);
+  const chartsRow = document.createElement('div');
+  chartsRow.className = 'charts-row';
+  chartsRow.append(charts.shear.el, charts.moment.el, charts.deflect.el);
+  timeline.append(chartsRow);
   document.body.append(timeline);
 
-  // ===== Wiring store → 3D =====
-  sm.onFrame(() => {
-    store.flush(); // §12 dirty-flag: listener sekali per frame
+  // ===== Panel kanan =====
+  const panelHost = document.createElement('aside');
+  panelHost.id = 'panel';
+  panelHost.className = 'glass';
+  const panel = buildBeamPanel(
+    params,
+    () => scheduleSolve(),
+    (m) => {
+      if (m === 'sim') {
+        anim.setFactor(0, 1); // replay ramp beban
+        scheduleSolve();
+      }
+    },
+  );
+  panelHost.append(panel.el);
+  document.body.append(panelHost);
+
+  // ===== Sidebar minimal (navigasi modul berikut fase) =====
+  const sidebar = document.createElement('aside');
+  sidebar.id = 'sidebar';
+  sidebar.className = 'glass';
+  const brand = document.createElement('div');
+  brand.className = 'brand';
+  brand.append(icon('landmark', 18));
+  const bt = document.createElement('span');
+  bt.textContent = 'Structural Lab';
+  brand.append(bt);
+  const nav = document.createElement('nav');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = ''.concat('module-btn');
+  btn.append(icon('ruler', 18));
+  const bs = document.createElement('span');
+  bs.textContent = 'Lab Balok';
+  btn.append(bs);
+  btn.setAttribute('aria-current', 'true');
+  nav.append(btn);
+  sidebar.append(brand, nav);
+  document.body.append(sidebar);
+
+  // ===== Disclaimer =====
+  const dis = document.createElement('div');
+  dis.className = 'disclaimer';
+  dis.textContent = 'Educational simulation — not a substitute for professional structural engineering design or verification.';
+  panelHost.append(dis);
+
+  // ===== Solve + wire =====
+  let solveScheduled = false;
+  const scheduleSolve = (): void => {
+    solveScheduled = true; // flush di frame berikut (§12 — sekali per frame, bukan per event slider)
+  };
+
+  const applySolution = (): void => {
+    const loads: BeamLoad[] = params.loadP > 0 ? [{ type: 'point', value: params.loadP, at: params.loadAt } as PointLoad] : [];
+    const case_ = {
+      span: params.span,
+      support: params.support,
+      loads,
+      section: section(),
+      material: material(),
+    };
+    let sol;
+    try {
+      sol = solveBeam(case_);
+    } catch (e) {
+      showEngineError(e);
+      return;
+    }
+    hideEngineError();
+    const samples = sol.samples(RINGS);
+    anim.setTargets(
+      samples.map((s) => s.V),
+      samples.map((s) => s.M),
+      samples.map((s) => s.y),
+    );
+    view.setBeam(section(), params.span, params.support);
+    panel.showResults(sol);
+    sm.fitTo(params.span, view.beamCenterY);
+    currentSol = sol;
+  };
+
+  let currentSol: ReturnType<typeof solveBeam> | null = null;
+  let showEngineError: (e: unknown) => void = () => {};
+  let hideEngineError: () => void = () => {};
+
+  const errHost = document.createElement('div');
+  errHost.id = 'engine-error';
+  errHost.style.display = 'none';
+  errHost.className = 'glass';
+  panelHost.append(errHost);
+
+  showEngineError = (e: unknown) => {
+    errHost.style.display = 'block';
+    errHost.textContent = e instanceof Error ? e.message : String(e);
+  };
+  hideEngineError = () => {
+    errHost.style.display = 'none';
+  };
+
+  // ===== Frame loop =====
+  let needsInit = true;
+  sm.onFrame((dt) => {
+    if (solveScheduled) {
+      solveScheduled = false;
+      applySolution();
+    }
+    if (needsInit) {
+      needsInit = false;
+      anim.snapToTargets();
+      view.setBeam(section(), params.span, params.support);
+    }
+    const moving = anim.step(dt);
+    view.updateDeform(anim, moving || solveScheduled, {
+      scale: deformScale(),
+      loadAt: params.loadAt,
+      loadP: params.loadP,
+      support: params.support,
+      reactions: currentSol?.reactions ?? { Ra: 0, Rb: 0, Ma: 0 },
+    });
+
+    // Diagram ikut animasi spring (nilainya sudah dianimasikan BeamAnim)
+    const chartData = (arr: Float64Array, scale = 1): ChartData[] => {
+      const out: ChartData[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        out.push({ x: (i * params.span) / (RINGS - 1), v: arr[i]! * scale });
+      }
+      return out;
+    };
+    charts.shear.update(chartData(anim.V));
+    charts.moment.update(chartData(anim.M));
+    charts.deflect.update(chartData(anim.y, deformScale()));
   });
+
+  // ===== Deform scale: auto dari defleksi maks (agar selalu terlihat, ~10% bentang) =====
+  let deformScaleVal = 0;
+  const deformScale = (): number => {
+    if (currentSol && Math.abs(currentSol.maxDeflection.value) > 1e-9) {
+      deformScaleVal = Math.max(0.1 * params.span / Math.abs(currentSol.maxDeflection.value), 1);
+    }
+    deformScaleVal = deformScaleVal || 1;
+    return deformScaleVal;
+  };
 
   window.addEventListener('resize', () => sm.resize());
   sm.resize();
-  sm.fitTo(6, 1.2);
-
-  // contoh modul: beam IPE300 3D profil asli §6 — placeholder scene fase 3
-  void MATERIALS;
-}
-
-function row(label: string, value: string): HTMLDivElement {
-  const div = document.createElement('div');
-  div.className = 'param-row';
-  div.style.marginBottom = '8px';
-  const lab = document.createElement('span');
-  lab.textContent = label;
-  const val = document.createElement('span');
-  val.className = 'num';
-  val.textContent = value;
-  div.append(lab, val);
-  div.style.display = 'flex';
-  div.style.justifyContent = 'space-between';
-  return div;
-}
-
-function sig3m(v: number): string {
-  return v.toPrecision(4).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  applySolution();
 }
 
 main().catch((err: unknown) => {
-  const el = document.body.querySelector('#app') ?? document.body;
-  el.textContent = `Gagal memuat aplikasi: ${err instanceof Error ? err.message : String(err)}`;
+  document.body.textContent = `Gagal memuat aplikasi: ${err instanceof Error ? err.message : String(err)}`;
 });
