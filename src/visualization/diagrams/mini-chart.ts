@@ -18,6 +18,7 @@ export class MiniChart {
   private readonly plot: SVGPathElement;
   private readonly plotGroup: SVGGElement;
   private readonly fill: SVGPathElement;
+  private readonly grad: SVGLinearGradientElement;
   private readonly zero: SVGLineElement;
   private readonly tip: SVGLineElement;
   private readonly dot: SVGCircleElement;
@@ -40,9 +41,31 @@ export class MiniChart {
     this.el.setAttribute('aria-label', label);
 
     this.fill = document.createElementNS(NS, 'path');
-    this.fill.setAttribute('fill', color);
-    this.fill.setAttribute('fill-opacity', '0.14');
-    this.fill.style.display = 'none'; // garis saja — tanpa area fill
+    // Fill area = gradien HORIZONTAL memudar dari garis nol → transparan di tepi
+    // (bukan blok solid gelap menyeberangi nol). Warna via xlink.
+    const gid = `grad-${Math.round(Math.random() * 1e6)}`;
+    this.grad = document.createElementNS(NS, 'linearGradient');
+    this.grad.id = gid;
+    this.grad.setAttribute('x1', '0');
+    this.grad.setAttribute('y1', '0');
+    this.grad.setAttribute('x2', '0');
+    this.grad.setAttribute('y2', '1');
+    const s1 = document.createElementNS(NS, 'stop');
+    s1.setAttribute('offset', '0');
+    s1.setAttribute('stop-color', color);
+    s1.setAttribute('stop-opacity', '0');
+    const s2 = document.createElementNS(NS, 'stop');
+    s2.setAttribute('offset', '0.5');
+    s2.setAttribute('stop-color', color);
+    s2.setAttribute('stop-opacity', '0.2');
+    const s3 = document.createElementNS(NS, 'stop');
+    s3.setAttribute('offset', '1');
+    s3.setAttribute('stop-color', color);
+    s3.setAttribute('stop-opacity', '0');
+    this.grad.append(s1, s2, s3);
+    const defs = document.createElementNS(NS, 'defs');
+    defs.append(this.grad);
+    this.fill.setAttribute('fill', `url(#${gid})`);
 
     // Clip: kurva + fill + crosshair tak keluar kotak chart.
     const clip = document.createElementNS(NS, 'clipPath');
@@ -96,7 +119,7 @@ export class MiniChart {
 
     // plot elements ter-clip; label/value/zero di atas.
     this.plotGroup.append(this.fill, this.plot, this.tip, this.dot);
-    this.el.append(this.zero, this.plotGroup, this.labelEl, this.valueEl);
+    this.el.append(defs, this.zero, this.plotGroup, this.labelEl, this.valueEl);
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
