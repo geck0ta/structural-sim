@@ -1,10 +1,26 @@
+/* §14 — iPhone-class glass. Dark glass LEBIH SOLID & tenang. Angka = tabular-nums. */
+
 :root {
-  --bg: #101214;
-  --panel: #16191c;
-  --border: #2a2f34;
-  --fg: #e6e9ec;
-  --muted: #9aa3ab;
-  --accent: #4f9cf9;
+  --bg: #0d0f12;
+  --fg: #f5f5f7;
+  --muted: #98a0a8;
+  --accent: #0a84ff;
+  --border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(22, 25, 29, 0.78);
+  --glass-blur: 18px;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f5f5f7;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --accent: #007aff;
+  --border: rgba(0, 0, 0, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-blur: 24px;
+  color-scheme: light;
 }
 
 * {
@@ -18,64 +34,340 @@ body {
 }
 
 body {
-  font: 13px/1.45 system-ui, sans-serif;
+  font: 13px/1.45 -apple-system, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
+  overflow: hidden;
 }
 
-/* Layout §16: sidebar / viewport / panel / timeline */
-#app {
-  display: grid;
-  grid-template-areas:
-    'sidebar viewport panel'
-    'sidebar timeline timeline';
-  grid-template-columns: 220px 1fr 300px;
-  grid-template-rows: 1fr 200px;
-  gap: 1px;
-  background: var(--border);
+/* ===== 3D full-bleed; panel overlay glass ===== */
+
+#canvas3d {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
   height: 100vh;
+  display: block;
+  touch-action: none;
 }
+
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+/* fallback tanpa backdrop-filter */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: color-mix(in srgb, var(--bg) 92%, white);
+  }
+}
+
+/* ===== Sidebar rail ===== */
 
 #sidebar {
-  grid-area: sidebar;
-  background: var(--panel);
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  z-index: 10;
 }
 
-#viewport {
-  grid-area: viewport;
-  background: var(--bg);
-  position: relative;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
+#sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-#panel {
-  grid-area: panel;
-  background: var(--panel);
-}
-
-#timeline {
-  grid-area: timeline;
-  background: var(--panel);
-}
-
-.modules {
+#sidebar nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
 }
 
-.modules button {
+.module-btn {
   all: unset;
-  padding: 6px 10px;
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: var(--muted);
   cursor: pointer;
+  font-size: 13px;
+  transition: background 150ms ease, color 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.module-btn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.module-btn:active {
+  transform: scale(0.97);
+}
+
+.module-btn[aria-current='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.module-btn:focus-visible,
+button:focus-visible,
+[role='slider']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===== Panel kanan ===== */
+
+#panel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 172px;
+  width: 296px;
+  padding: 16px;
+  overflow-y: auto;
+  z-index: 10;
+  scrollbar-width: thin;
+}
+
+#panel h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#panel .caption {
+  margin: 0 0 14px;
+  font-size: 11px;
   color: var(--muted);
 }
 
-.modules button:hover {
-  background: #1f2429;
+.param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.param-row label {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.param-row label .val {
   color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* angka engineering: tidak boleh goyah lebar */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.big-num {
+  font-size: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.result-block {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ===== Timeline bawah ===== */
+
+#timeline {
+  position: fixed;
+  left: 220px;
+  right: 320px;
+  bottom: 12px;
+  height: 148px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+#timeline .controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ghost-btn {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ghost-btn:active {
+  transform: scale(0.94);
+}
+
+/* ===== Segmented ===== */
+
+.segmented {
+  position: relative;
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(120, 128, 136, 0.18);
+  border-radius: 9px;
+}
+
+.segmented-pill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--fg) 92%, var(--bg));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.segmented-btn {
+  all: unset;
+  position: relative;
+  padding: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+
+.segmented-btn[aria-selected='true'] {
+  color: var(--bg);
+  font-weight: 500;
+}
+
+/* ===== Slider iOS ===== */
+
+.ios-slider {
+  position: relative;
+  height: 28px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.ios-slider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(120, 128, 136, 0.3);
+}
+
+.ios-slider-fill {
+  position: absolute;
+  left: 0;
+  top: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.ios-slider-thumb {
+  position: absolute;
+  top: 14px;
+  left: calc(0% - 11px);
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transform: translateX(0);
+}
+
+.ios-slider.dragging .ios-slider-thumb {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.ios-slider-bubble {
+  position: absolute;
+  bottom: 26px;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.ios-slider.dragging .ios-slider-bubble,
+.ios-slider:focus-visible .ios-slider-bubble {
+  opacity: 1;
+}
+
+/* thumb posisi mengikuti fill — diatur inline via CSS var di JS */
+.ios-slider[data-t] {
+  /* t diset JS */
+}
+
+.ios-slider-thumb {
+  left: var(--t, 0%);
+}
+
+.lucide-icon {
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+.disclaimer {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
