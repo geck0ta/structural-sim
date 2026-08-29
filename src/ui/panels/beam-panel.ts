@@ -83,13 +83,13 @@ export function buildBeamPanel(
   let posSlider: { row: HTMLDivElement; slider: IOSSlider } | null = null;
   const spanRow = sliderRow('Panjang bentang L', 2, 10, 0.1, () => params.span, (v) => {
     params.span = v;
-    params.loadAt = Math.min(params.loadAt, v); // beban tak boleh di luar bentang
-    if (posSlider) posSlider.slider.set(params.loadAt, false);
+    params.loadAt = Math.min(params.loadAt, v);
+    if (posSlider) posSlider.slider.setRange(0.5, v, params.loadAt);
   }, fmtLength);
   root.append(spanRow.row);
   const loadRow = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
   root.append(loadRow.row);
-  posSlider = sliderRow('Posisi beban a', 0.5, 10, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
+  posSlider = sliderRow('Posisi beban a', 0.5, params.span, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
   root.append(posSlider.row);
 
   // Tipe beban: titik / merata — sembunyikan "posisi beban" saat merata

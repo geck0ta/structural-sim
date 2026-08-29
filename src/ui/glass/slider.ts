@@ -8,8 +8,8 @@ export class IOSSlider {
   private val: number;
 
   constructor(
-    private readonly min: number,
-    private readonly max: number,
+    private min: number,
+    private max: number,
     private readonly step: number,
     initial: number,
     private readonly format: (v: number) => string,
@@ -76,6 +76,14 @@ export class IOSSlider {
     this.bubble.textContent = this.format(this.val);
     this.bubble.style.left = `calc(${t * 100}% )`;
     if (notify) this.onInput(this.val);
+  }
+
+  /** Geser rentang slider (mis. posisi beban mengikuti bentang L). */
+  setRange(min: number, max: number, v: number): void {
+    this.min = min;
+    this.max = max;
+    this.root.setAttribute('aria-valuemax', String(max));
+    this.set(v, false);
   }
 
   get value(): number {

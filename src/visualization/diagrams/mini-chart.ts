@@ -42,6 +42,7 @@ export class MiniChart {
     this.fill = document.createElementNS(NS, 'path');
     this.fill.setAttribute('fill', color);
     this.fill.setAttribute('fill-opacity', '0.14');
+    this.fill.style.display = 'none'; // garis saja — tanpa area fill
 
     // Clip: kurva + fill + crosshair tak keluar kotak chart.
     const clip = document.createElementNS(NS, 'clipPath');

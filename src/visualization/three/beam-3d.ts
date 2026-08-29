@@ -96,8 +96,8 @@ export class BeamView {
     this.beamMat = beamMaterial ?? new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.45, metalness: 0.7 });
     this.propMat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.8, metalness: 0.2 });
     this.loadArrow = new ForceArrow(0xff453a, 0.5);
-    this.reactA = new ForceArrow(0xffd60a, 0.5);
-    this.reactB = new ForceArrow(0xffd60a, 0.5);
+    this.reactA = new ForceArrow(0xffd60a, 0.3);
+    this.reactB = new ForceArrow(0xffd60a, 0.3);
     this.group.add(this.loadArrow.group, this.reactA.group, this.reactB.group, this.supports);
     for (let i = 0; i < 8; i++) {
       const a = new ForceArrow(0xff453a, 0.32);
@@ -207,25 +207,31 @@ export class BeamView {
       const i1 = Math.min(i0 + 1, this.rings - 1);
       return anim.y[i0]! * f * scale + (anim.y[i1]! * f * scale - anim.y[i0]! * f * scale) * (i - i0);
     };
-    // Pasang panah: tip di permukaan, batang menjulur menjauhi balok.
-    // dir -1 = beban (dari atas, menunjuk ke bawah), +1 = reaksi (dari bawah, ke atas).
-    const place = (a: ForceArrow, x: number, dir: number, on: boolean): void => {
+    // Beban (merah): tip DIKURVE PERMUKAAN — beban naik → permukaan turun → panah ikut turun.
+    // Reaksi (kuning): DI BELAKANG balok (z = −width), dari bawah tumpuan ke atas —
+    // tak menembus balok, kecil, tak mencolok.
+    const placeLoad = (a: ForceArrow, x: number, on: boolean): void => {
       a.group.visible = on;
       if (!on) return;
-      const dy = yAt(x) * dir; // ikut defleksi lokal
-      const yTop = this.centerY + dy + (dir > 0 ? -this.depth / 2 : this.depth / 2);
+      const yTop = this.centerY + yAt(x) + this.depth / 2;
       a.group.position.set(x, yTop, 0);
-      a.group.rotation.z = dir > 0 ? 0 : Math.PI; // +Y panah = arah gaya
+      a.group.rotation.z = Math.PI; // +Y panah = arah gaya (ke bawah)
+    };
+    const placeReact = (a: ForceArrow, x: number, on: boolean): void => {
+      a.group.visible = on;
+      if (!on) return;
+      a.group.position.set(x, SUPPORT_H - 0.12, -this.width * 0.75);
+      a.group.rotation.z = 0; // ke atas
     };
 
-    // UDL: 8 panah kecil merata
+    // UDL: 8 panah kecil merata — semua tip menempel kurva, jadi deretan simetris
     const showUdl = show && loadType === 'udl' && Math.abs(loadP) > 1;
     for (let i = 0; i < this.udlArrows.length; i++) {
-      place(this.udlArrows[i]!, ((i + 0.5) / this.udlArrows.length) * this.span, -1, showUdl);
+      placeLoad(this.udlArrows[i]!, ((i + 0.5) / this.udlArrows.length) * this.span, showUdl);
     }
 
     // Beban titik: 1 panah
-    place(this.loadArrow, loadAt, -1, show && loadType === 'point' && Math.abs(loadP) > 1);
+    placeLoad(this.loadArrow, Math.min(loadAt, this.span), show && loadType === 'point' && Math.abs(loadP) > 1);
 
     if (moving && this.posAttr && this.mesh) {
       const pos = this.posAttr.array as Float32Array;
@@ -260,9 +266,9 @@ export class BeamView {
       this.mesh.geometry.computeVertexNormals();
     }
 
-    // Reaksi (kuning): panah kecil dari bawah tumpuan, ke atas
-    place(this.reactA, support === 'cantilever' ? 0.25 : 0, +1, show && Math.abs(reactions.Ra) > 1);
-    place(this.reactB, this.span, +1, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
+    // Reaksi (kuning): kecil, di belakang balok, dari bawah tumpuan ke atas
+    placeReact(this.reactA, support === 'cantilever' ? 0.25 : 0, show && Math.abs(reactions.Ra) > 1);
+    placeReact(this.reactB, this.span, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
   }
 
   dispose(): void {
