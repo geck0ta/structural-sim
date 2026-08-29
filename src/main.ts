@@ -88,7 +88,16 @@ async function main(): Promise<void> {
   panelHost.append(panel.el);
   document.body.append(panelHost);
 
-  // ===== Sidebar minimal (navigasi modul berikut fase) =====
+  // ===== Sidebar 6 modul (§17 — nav utama; modul dibangun fase berikutnya disabled) =====
+  const MODULES = [
+    { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },
+    { id: 'math', label: 'Matematika', icon: 'sigma', ready: false },
+    { id: 'fem', label: 'FEM', icon: 'grid-3x3', ready: false },
+    { id: 'dyn', label: 'Gempa / Dinamika', icon: 'activity', ready: false },
+    { id: 'loads', label: 'Beban Lingkungan', icon: 'wind', ready: false },
+    { id: 'model3d', label: 'Model 3D', icon: 'boxes', ready: false },
+  ] as const;
+
   const sidebar = document.createElement('aside');
   sidebar.id = 'sidebar';
   sidebar.className = 'glass';
@@ -99,15 +108,24 @@ async function main(): Promise<void> {
   bt.textContent = 'Structural Lab';
   brand.append(bt);
   const nav = document.createElement('nav');
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = ''.concat('module-btn');
-  btn.append(icon('ruler', 18));
-  const bs = document.createElement('span');
-  bs.textContent = 'Lab Balok';
-  btn.append(bs);
-  btn.setAttribute('aria-current', 'true');
-  nav.append(btn);
+  for (const m of MODULES) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'module-btn';
+    btn.disabled = !m.ready;
+    btn.append(icon(m.icon, 18));
+    const bs = document.createElement('span');
+    bs.textContent = m.label;
+    btn.append(bs);
+    btn.setAttribute('aria-current', String(m.id === 'mech'));
+    if (m.ready) {
+      btn.addEventListener('click', () => {
+        nav.querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', 'false'));
+        btn.setAttribute('aria-current', 'true');
+      });
+    }
+    nav.append(btn);
+  }
   sidebar.append(brand, nav);
   document.body.append(sidebar);
 

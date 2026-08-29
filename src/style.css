@@ -97,6 +97,11 @@ body {
   gap: 2px;
 }
 
+.module-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .module-btn {
   all: unset;
   display: flex;
