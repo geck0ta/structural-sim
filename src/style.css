@@ -1,0 +1,81 @@
+:root {
+  --bg: #101214;
+  --panel: #16191c;
+  --border: #2a2f34;
+  --fg: #e6e9ec;
+  --muted: #9aa3ab;
+  --accent: #4f9cf9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: 13px/1.45 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+/* Layout §16: sidebar / viewport / panel / timeline */
+#app {
+  display: grid;
+  grid-template-areas:
+    'sidebar viewport panel'
+    'sidebar timeline timeline';
+  grid-template-columns: 220px 1fr 300px;
+  grid-template-rows: 1fr 200px;
+  gap: 1px;
+  background: var(--border);
+  height: 100vh;
+}
+
+#sidebar {
+  grid-area: sidebar;
+  background: var(--panel);
+}
+
+#viewport {
+  grid-area: viewport;
+  background: var(--bg);
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+#panel {
+  grid-area: panel;
+  background: var(--panel);
+}
+
+#timeline {
+  grid-area: timeline;
+  background: var(--panel);
+}
+
+.modules {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+}
+
+.modules button {
+  all: unset;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.modules button:hover {
+  background: #1f2429;
+  color: var(--fg);
+}
