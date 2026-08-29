@@ -6,8 +6,9 @@ import { MiniChart, CHART_COLORS } from './visualization/diagrams/mini-chart';
 import { buildBeamPanel } from './ui/panels/beam-panel';
 import type { BeamParams } from './ui/panels/beam-panel';
 import { solveBeam } from './structural/beam/beam-solver';
-import type { BeamLoad, PointLoad } from './structural/beam/beam-solver';
+import type { BeamLoad } from './structural/beam/beam-solver';
 import type { ChartData } from './visualization/diagrams/mini-chart';
+import { buildTextures, material3D } from './structural/textures';
 import { MATERIALS } from './data/materials';
 import { SECTION_PRESETS } from './structural/models/section';
 import { fmtForce, fmtMoment, fmtLength } from './core/units';
@@ -46,13 +47,15 @@ async function main(): Promise<void> {
     materialId: 'steelS355',
     sectionId: 'ipe300',
     support: 'cantilever',
+    loadType: 'point',
   };
 
   const section = (): typeof SECTION_PRESETS[number] => SECTION_PRESETS.find((s) => s.id === params.sectionId) ?? SECTION_PRESETS[0]!;
   const material = (): (typeof MATERIALS)[string] => MATERIALS[params.materialId] ?? MATERIALS.steelS355;
 
   // ===== 3D =====
-  const view = new BeamView(sm.scene);
+  const textures = buildTextures();
+  const view = new BeamView(sm.scene, material3D(material(), textures));
   const anim = new BeamAnim(RINGS);
 
   // ===== Diagrams =====
@@ -142,7 +145,11 @@ async function main(): Promise<void> {
   };
 
   const applySolution = (): void => {
-    const loads: BeamLoad[] = params.loadP > 0 ? [{ type: 'point', value: params.loadP, at: params.loadAt } as PointLoad] : [];
+    const loads: BeamLoad[] = [];
+    if (params.loadP > 0) {
+      if (params.loadType === 'udl') loads.push({ type: 'udl', value: params.loadP / params.span, from: 0, to: params.span });
+      else loads.push({ type: 'point', value: params.loadP, at: params.loadAt });
+    }
     const case_ = {
       span: params.span,
       support: params.support,
@@ -164,6 +171,9 @@ async function main(): Promise<void> {
       samples.map((s) => s.M),
       samples.map((s) => s.y),
     );
+    // material 3D ikut material terpilih (tekstur kayu/beton)
+    const newMat = material3D(material(), textures);
+    view.setBeamMaterial(newMat);
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
     sm.fitTo(params.span, view.beamCenterY);
@@ -205,6 +215,7 @@ async function main(): Promise<void> {
       scale: deformScale(),
       loadAt: params.loadAt,
       loadP: params.loadP,
+      loadType: params.loadType ?? 'point',
       support: params.support,
       reactions: currentSol?.reactions ?? { Ra: 0, Rb: 0, Ma: 0 },
     });

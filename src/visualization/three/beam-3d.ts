@@ -8,8 +8,9 @@ import type { BeamAnim } from '../animation/beam-anim';
 // Panah beban (biru, tip di permukaan atas) & reaksi (hijau, tip di bawah balok),
 // panjang ∝ magnitude. Defleksi diperbesar — skala dari main.
 
-const ACCENT = 0x0a84ff;
-const GREEN = 0x30d158;
+const LOAD_COLOR = 0xff453a; // beban: merah (konvensi umum beban luar)
+const REACT_COLOR = 0xffd60a; // reaksi: kuning netral
+const SUPPORT_COLOR = 0x484f57;
 const STEEL = 0x97a1ab;
 const SUPPORT_H = 1.2; // elevasi balok — memberi ruang panah reaksi ∝ magnitude
 const ARROW_REACH = 0.86; // tip lokal panah (m, sebelum scale)
@@ -64,6 +65,7 @@ export interface DeformOpts {
   readonly scale: number; // faktor perbesaran defleksi
   readonly loadAt: number; // m
   readonly loadP: number; // N
+  readonly loadType: 'point' | 'udl';
   readonly support: BeamSupport;
   readonly reactions: { readonly Ra: number; readonly Rb: number; readonly Ma: number };
 }
@@ -78,19 +80,26 @@ export class BeamView {
   private centerY = SUPPORT_H;
   private depth = 0.3;
   private width = 0.2;
-  readonly loadArrow = makeArrow(ACCENT);
-  private readonly reactA = makeArrow(GREEN);
-  private readonly reactB = makeArrow(GREEN);
+  readonly loadArrow = makeArrow(LOAD_COLOR);
+  private readonly reactA = makeArrow(REACT_COLOR);
+  private readonly reactB = makeArrow(REACT_COLOR);
+  private readonly udlArrows: THREE.Group[] = [];
   private readonly supports = new THREE.Group();
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
 
-  constructor(private readonly scene: THREE.Scene) {
-    this.beamMat = new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.45, metalness: 0.7 });
-    this.propMat = new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: 0.8, metalness: 0.2 });
+  constructor(private readonly scene: THREE.Scene, beamMaterial?: THREE.MeshStandardMaterial) {
+    this.beamMat = beamMaterial ?? new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.45, metalness: 0.7 });
+    this.propMat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.8, metalness: 0.2 });
     this.group.add(this.loadArrow, this.reactA, this.reactB, this.supports);
     this.reactA.rotation.z = Math.PI; // panah reaksi mengarah ke atas (gaya tumpuan)
     this.reactB.rotation.z = Math.PI;
+    for (let i = 0; i < 8; i++) {
+      const a = makeArrow(LOAD_COLOR);
+      a.scale.set(0.5, 0.5, 0.5);
+      this.udlArrows.push(a);
+      this.group.add(a);
+    }
     this.scene.add(this.group);
   }
 
@@ -100,6 +109,13 @@ export class BeamView {
 
   get supportHeight(): number {
     return SUPPORT_H;
+  }
+
+  /** Ganti material balok (tekstur kayu/beton/baja) — dispose yang lama. */
+  setBeamMaterial(m: THREE.MeshStandardMaterial): void {
+    this.beamMat.dispose();
+    Object.assign(this.beamMat, m);
+    this.beamMat.needsUpdate = true;
   }
 
   /** Rebuild geometri (dipanggil saat penampang/panjang/support berubah). */
@@ -151,45 +167,63 @@ export class BeamView {
     this.buildSupports(support);
   }
 
+  /** Prisma tumpuan klasik: balok tinggi tipis (pin) + blok+silinder kecil (roller) + dinding (fixed). */
   private buildSupports(support: BeamSupport): void {
     const botY = this.centerY - this.depth / 2; // = SUPPORT_H
+    const w = Math.max(this.width * 1.2, 0.28);
     if (support === 'cantilever') {
+      // dinding jepit sederhana: balok vertikal tebal
       const wall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, botY + this.depth / 2 + 0.3, Math.max(this.width * 1.6, 0.5)),
+        new THREE.BoxGeometry(0.26, botY + this.depth / 2 + 0.35, w),
         this.propMat,
       );
-      wall.position.set(-0.12, (botY + this.depth / 2 + 0.3) / 2 - 0.15, 0);
+      wall.position.set(-0.13, (botY + this.depth / 2 + 0.35) / 2, 0);
       wall.castShadow = true;
       wall.receiveShadow = true;
       this.supports.add(wall);
     } else {
-      const pin = new THREE.Mesh(new THREE.ConeGeometry(0.24, botY, 4), this.propMat);
-      pin.position.set(0, botY / 2, 0);
-      pin.rotation.y = Math.PI / 4;
-      pin.castShadow = true;
-      pin.receiveShadow = true;
-      this.supports.add(pin);
-      const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, this.width * 1.4 + 0.1, 24), this.propMat);
-      roller.rotation.x = Math.PI / 2;
-      roller.position.set(this.span, botY - 0.22, 0);
-      roller.castShadow = true;
-      roller.receiveShadow = true;
-      this.supports.add(roller);
-      const pedestal = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, botY - 0.44, this.width * 1.4 + 0.1),
-        this.propMat,
-      );
-      pedestal.position.set(this.span, (botY - 0.44) / 2, 0);
-      pedestal.castShadow = true;
-      this.supports.add(pedestal);
+      // pin: prisma segitiga sederhana
+      const tri = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, w, 3), this.propMat);
+      tri.rotation.z = Math.PI / 2;
+      tri.rotation.y = Math.PI / 2;
+      tri.position.set(0, botY * 0.55, 0);
+      tri.scale.set(1, botY * 0.85 / 0.3, 1);
+      tri.castShadow = true;
+      this.supports.add(tri);
+      // roller: blok persegi kecil (dengan garis batas = silinder pendek)
+      const block = new THREE.Mesh(new THREE.BoxGeometry(w * 1.1, botY - 0.1, w * 1.1), this.propMat);
+      block.position.set(this.span, (botY - 0.1) / 2, 0);
+      block.castShadow = true;
+      block.receiveShadow = true;
+      this.supports.add(block);
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, w * 1.15, 20), this.propMat);
+      roll.rotation.x = Math.PI / 2;
+      roll.position.set(this.span, botY - 0.09, 0);
+      roll.castShadow = true;
+      this.supports.add(roll);
     }
   }
 
   /** Update deformasi + panah. `moving` = anim masih bergerak (skip rebuild posisi bila false). */
   updateDeform(anim: BeamAnim, moving: boolean, o: DeformOpts): void {
-    const { scale, loadAt, loadP, support, reactions } = o;
+    const { scale, loadAt, loadP, loadType, support, reactions } = o;
     const f = anim.factor;
     const P = this.profile.length;
+
+    // UDL: 8 panah kecil merata sepanjang bentang
+    const showUdl = loadType === 'udl' && loadP > 0 && f > 0.02;
+    for (let i = 0; i < this.udlArrows.length; i++) {
+      const a = this.udlArrows[i]!;
+      a.visible = showUdl;
+      if (showUdl) {
+        const x = ((i + 0.5) / this.udlArrows.length) * this.span;
+        const len = (0.35 + 0.5 * Math.min(loadP / 80e3, 1.5)) * Math.max(f, 0.001);
+        const topY = this.centerY + this.depth / 2;
+        a.position.set(x, topY + ARROW_REACH * len, 0);
+        a.scale.set(0.55, len, 0.55);
+      }
+    }
+    this.loadArrow.visible = loadType === 'point' && Math.abs(loadP) > 1 && f > 0.02;
 
     if (moving && this.posAttr && this.mesh) {
       const pos = this.posAttr.array as Float32Array;
@@ -224,10 +258,9 @@ export class BeamView {
       this.mesh.geometry.computeVertexNormals();
     }
 
-    // Panah beban (biru): tip menempel permukaan atas balok, memanjang ke atas ∝ P.
+    // Panah beban titik (merah): tip menempel permukaan atas balok, memanjang ke atas ∝ P.
     const topY = this.centerY + this.depth / 2;
     const loadLen = (0.4 + 1.0 * Math.min(Math.abs(loadP) / REF_FORCE, 1.5)) * Math.max(f, 0.001);
-    this.loadArrow.visible = Math.abs(loadP) > 1 && f > 0.02;
     this.loadArrow.position.set(loadAt, topY + ARROW_REACH * loadLen, 0);
     this.loadArrow.scale.set(1, loadLen, 1);
 

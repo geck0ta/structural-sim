@@ -15,6 +15,7 @@ export interface BeamParams {
   materialId: string;
   sectionId: string;
   support: 'ss' | 'cantilever';
+  loadType: 'point' | 'udl'; // titik atau merata
 }
 
 export interface BeamPanel {
@@ -79,11 +80,35 @@ export function buildBeamPanel(
     return row;
   };
 
-  root.append(
-    sliderRow('Panjang bentang L', 2, 10, 0.1, () => params.span, (v) => { params.span = v; params.loadAt = Math.min(params.loadAt, v); }, fmtLength),
+  root.append(sliderRow('Panjang bentang L', 2, 10, 0.1, () => params.span, (v) => { params.span = v; params.loadAt = Math.min(params.loadAt, v); }, fmtLength));
+  const loadSlider = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
+  root.append(loadSlider);
+  const posSlider = sliderRow('Posisi beban a', 0.5, 10, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
+  root.append(posSlider);
+
+  // Tipe beban: titik / merata — sembunyikan "posisi beban" saat merata
+  const loadTypeLabel = document.createElement('div');
+  loadTypeLabel.className = 'param-label';
+  loadTypeLabel.textContent = 'Tipe beban';
+  const loadTypeName = loadSlider.querySelector('label > span:first-child');
+  const loadTypeSeg = new SegmentedControl(
+    [
+      { value: 'point', label: 'Titik' },
+      { value: 'udl', label: 'Merata' },
+    ],
+    params.loadType ?? 'point',
+    (v) => {
+      params.loadType = v;
+      posSlider.style.display = v === 'point' ? '' : 'none';
+      if (loadTypeName) loadTypeName.textContent = v === 'point' ? 'Beban P' : 'Beban merata w';
+      onChange();
+    },
   );
-  root.append(sliderRow('Beban titik P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000)));
-  root.append(sliderRow('Posisi beban a', 0.5, 10, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength));
+  if ((params.loadType ?? 'point') === 'udl') {
+    posSlider.style.display = 'none';
+    if (loadTypeName) loadTypeName.textContent = 'Beban merata w';
+  }
+  root.append(loadTypeLabel, loadTypeSeg.el);
 
   // Tumpuan
   const supLabel = document.createElement('div');
