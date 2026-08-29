@@ -42,6 +42,11 @@ export function sectionProps(section: Section): SectionProps {
   }
 }
 
+/** Tinggi penampang (mm) — serat tepi lentur = depth/2 (sumbu kuat). */
+export function sectionDepth(s: Section): number {
+  return s.shape === 'circular' ? s.dims.d : s.dims.h;
+}
+
 // §6 — preset. Nilai referensi: tabel profil baja ArcelorMittal (IPE 300).
 
 export const IPE300 = {
