@@ -2,17 +2,33 @@ import * as THREE from 'three';
 import type { Section } from '../../structural/models/types';
 import type { BeamSupport } from '../../structural/beam/beam-solver';
 import type { BeamAnim } from '../animation/beam-anim';
-import { dotStyle } from './dot-style';
-import { glowHaloTexture } from '../../structural/textures';
 
 // §7/§17 — Lab Balok 3D: profil penampang ASLI (IPE300 dsb.) di-sweep mengikuti
 // kurva defleksi y(x). Satu BufferGeometry, posisi di-update per frame (tanpa rebuild).
-// Gaya = dot putih UKURAN KONSTAN: beban glow (makin besar makin terang),
-// reaksi polos (makin besar makin pucat). Defleksi diperbesar — skala dari main.
+// Gaya = panah KECIL SIMPLE, panjang konstan, ujung menempel permukaan terdeformasi.
+// Defleksi diperbesar — skala dari main.
 
 const STEEL = 0x97a1ab;
 const SUPPORT_COLOR = 0x484f57;
-const SUPPORT_H = 1.2; // elevasi balok — memberi ruang dot reaksi di bawah
+const SUPPORT_H = 1.2; // elevasi balok — memberi ruang tanda reaksi di bawah
+
+/** Panah kecil satu warna: batang silinder + kepala kerucut. Panjang konstan. */
+class ForceArrow {
+  readonly group = new THREE.Group();
+  constructor(color: number, len: number) {
+    const mat = new THREE.MeshBasicMaterial({ color });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, len, 8), mat);
+    shaft.position.y = len / 2;
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 10), mat);
+    head.position.y = len;
+    this.group.add(shaft, head);
+    // origin = tip; group diposisikan di titik terpasang lalu dirotasi.
+    this.group.visible = false;
+  }
+}
+
+// §7/§17 — Lab Balok 3D: profil penampang ASLI (IPE300 dsb.) di-sweep mengikuti
+// kurva defleksi y(x). Satu BufferGeometry, posisi di-update per frame (tanpa rebuild).
 
 /** Titik keliling penampang (m), CCW. x = lebar (→ sumbu Z), y = tinggi (→ Y). */
 export function profilePoints(s: Section): THREE.Vector2[] {
@@ -46,36 +62,6 @@ export function profilePoints(s: Section): THREE.Vector2[] {
   }
 }
 
-/** Dot putih menandai gaya: core bola + halo sprite (glow) atau polos. Ukuran KONSTAN. */
-interface ForceDot {
-  readonly core: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
-  readonly halo: THREE.Sprite | null;
-}
-
-function makeDot(haloTex: THREE.Texture, withHalo: boolean, radius = 0.09): ForceDot {
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 20, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }),
-  );
-  let halo: THREE.Sprite | null = null;
-  if (withHalo) {
-    halo = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: haloTex,
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        transparent: true,
-        opacity: 0.5,
-      }),
-    );
-    halo.scale.set(0.55, 0.55, 1);
-    core.add(halo);
-  }
-  core.visible = false;
-  return { core, halo };
-}
-
 export interface DeformOpts {
   readonly scale: number; // faktor perbesaran defleksi
   readonly loadAt: number; // m
@@ -91,14 +77,17 @@ export class BeamView {
   private posAttr: THREE.BufferAttribute | null = null;
   private profile: THREE.Vector2[] = [];
   private rings = 101;
-  private span = 0;
+  span = 0; // public: main cek apakah geometri berubah (re-fit kamera)
+  support: BeamSupport | null = null;
+  sectionId = '';
+  matId = '';
   private centerY = SUPPORT_H;
   private depth = 0.3;
   private width = 0.2;
-  readonly loadDot: ForceDot;
-  private readonly reactADot: ForceDot;
-  private readonly reactBDot: ForceDot;
-  private readonly udlDots: ForceDot[] = [];
+  readonly loadArrow: ForceArrow;
+  private readonly reactA: ForceArrow;
+  private readonly reactB: ForceArrow;
+  private readonly udlArrows: ForceArrow[] = [];
   private readonly supports = new THREE.Group();
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
@@ -106,15 +95,14 @@ export class BeamView {
   constructor(private readonly scene: THREE.Scene, beamMaterial?: THREE.MeshStandardMaterial) {
     this.beamMat = beamMaterial ?? new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.45, metalness: 0.7 });
     this.propMat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.8, metalness: 0.2 });
-    const haloTex = glowHaloTexture();
-    this.loadDot = makeDot(haloTex, true);
-    this.reactADot = makeDot(haloTex, false);
-    this.reactBDot = makeDot(haloTex, false);
-    this.group.add(this.loadDot.core, this.reactADot.core, this.reactBDot.core, this.supports);
+    this.loadArrow = new ForceArrow(0xff453a, 0.5);
+    this.reactA = new ForceArrow(0xffd60a, 0.5);
+    this.reactB = new ForceArrow(0xffd60a, 0.5);
+    this.group.add(this.loadArrow.group, this.reactA.group, this.reactB.group, this.supports);
     for (let i = 0; i < 8; i++) {
-      const d = makeDot(haloTex, true, 0.055);
-      this.udlDots.push(d);
-      this.group.add(d.core);
+      const a = new ForceArrow(0xff453a, 0.32);
+      this.udlArrows.push(a);
+      this.group.add(a.group);
     }
     this.scene.add(this.group);
   }
@@ -137,6 +125,8 @@ export class BeamView {
   /** Rebuild geometri (dipanggil saat penampang/panjang/support berubah). */
   setBeam(section: Section, span: number, support: BeamSupport): void {
     this.span = span;
+    this.support = support;
+    this.sectionId = section.id;
     this.profile = profilePoints(section);
     this.depth = (section.shape === 'circular' ? section.dims.d : section.dims.h) / 1000;
     this.width = (section.shape === 'circular' ? section.dims.d : section.dims.b) / 1000;
@@ -202,34 +192,40 @@ export class BeamView {
     }
   }
 
-  /** Update deformasi + dot gaya. `moving` = anim masih bergerak (skip rebuild posisi bila false). */
+  /** Update deformasi + panah kecil. `moving` = anim masih bergerak (skip rebuild posisi bila false). */
   updateDeform(anim: BeamAnim, moving: boolean, o: DeformOpts): void {
     const { scale, loadAt, loadP, loadType, support, reactions } = o;
     const f = anim.factor;
     const P = this.profile.length;
-    const show = f > 0.02; // dot menyala setelah beban mulai diterapkan
-    const topY = this.centerY + this.depth / 2;
-    const botY = this.centerY - this.depth / 2;
+    const show = f > 0.02; // panah menyala setelah beban mulai diterapkan
+    const dx = this.span / (this.rings - 1);
 
-    // UDL: 8 dot glow kecil merata sepanjang bentang — ukuran konstan, terang ∝ w
+    // Y permukaan terdeformasi pada x (interpolasi sampel anim).
+    const yAt = (x: number): number => {
+      const i = Math.min(Math.max(x / dx, 0), this.rings - 1);
+      const i0 = Math.floor(i);
+      const i1 = Math.min(i0 + 1, this.rings - 1);
+      return anim.y[i0]! * f * scale + (anim.y[i1]! * f * scale - anim.y[i0]! * f * scale) * (i - i0);
+    };
+    // Pasang panah: tip di permukaan, batang menjulur menjauhi balok.
+    // dir -1 = beban (dari atas, menunjuk ke bawah), +1 = reaksi (dari bawah, ke atas).
+    const place = (a: ForceArrow, x: number, dir: number, on: boolean): void => {
+      a.group.visible = on;
+      if (!on) return;
+      const dy = yAt(x) * dir; // ikut defleksi lokal
+      const yTop = this.centerY + dy + (dir > 0 ? -this.depth / 2 : this.depth / 2);
+      a.group.position.set(x, yTop, 0);
+      a.group.rotation.z = dir > 0 ? 0 : Math.PI; // +Y panah = arah gaya
+    };
+
+    // UDL: 8 panah kecil merata
     const showUdl = show && loadType === 'udl' && Math.abs(loadP) > 1;
-    const udlGlow = dotStyle(loadP).glow;
-    for (let i = 0; i < this.udlDots.length; i++) {
-      const d = this.udlDots[i]!;
-      d.core.visible = showUdl;
-      if (showUdl) {
-        d.core.position.set(((i + 0.5) / this.udlDots.length) * this.span, topY + 0.14, 0);
-        if (d.halo) (d.halo.material as THREE.SpriteMaterial).opacity = udlGlow;
-      }
+    for (let i = 0; i < this.udlArrows.length; i++) {
+      place(this.udlArrows[i]!, ((i + 0.5) / this.udlArrows.length) * this.span, -1, showUdl);
     }
 
-    // Beban titik: 1 dot glow — makin besar makin terang
-    this.loadDot.core.visible = show && loadType === 'point' && Math.abs(loadP) > 1;
-    if (this.loadDot.core.visible) {
-      this.loadDot.core.position.set(loadAt, topY + 0.18, 0);
-      this.loadDot.core.material.opacity = 0.95;
-      if (this.loadDot.halo) (this.loadDot.halo.material as THREE.SpriteMaterial).opacity = dotStyle(loadP).glow;
-    }
+    // Beban titik: 1 panah
+    place(this.loadArrow, loadAt, -1, show && loadType === 'point' && Math.abs(loadP) > 1);
 
     if (moving && this.posAttr && this.mesh) {
       const pos = this.posAttr.array as Float32Array;
@@ -264,17 +260,9 @@ export class BeamView {
       this.mesh.geometry.computeVertexNormals();
     }
 
-    // Reaksi: dot polos — makin besar makin pucat (dotStyle.plain)
-    const setReact = (d: ForceDot, r: number, x: number): void => {
-      d.core.visible = show && Math.abs(r) > 1;
-      if (d.core.visible) {
-        d.core.position.set(x, botY - 0.18, 0);
-        d.core.material.opacity = dotStyle(r).plain;
-      }
-    };
-    setReact(this.reactADot, reactions.Ra, support === 'cantilever' ? 0.22 : 0);
-    if (support === 'ss') setReact(this.reactBDot, reactions.Rb, this.span);
-    else this.reactBDot.core.visible = false;
+    // Reaksi (kuning): panah kecil dari bawah tumpuan, ke atas
+    place(this.reactA, support === 'cantilever' ? 0.25 : 0, +1, show && Math.abs(reactions.Ra) > 1);
+    place(this.reactB, this.span, +1, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
   }
 
   dispose(): void {

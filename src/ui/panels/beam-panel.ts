@@ -22,13 +22,14 @@ export interface BeamPanel {
   readonly el: HTMLDivElement;
   readonly getParams: () => BeamParams;
   readonly showResults: (sol: BeamSolution) => void;
-  readonly setMode: (m: 'explore' | 'explain' | 'sim') => void;
+  readonly setMode: (m: 'explore' | 'explain') => void;
+  readonly replayBtn: HTMLButtonElement;
 }
 
 export function buildBeamPanel(
   params: BeamParams,
   onChange: () => void,
-  onMode: (m: 'explore' | 'explain' | 'sim') => void,
+  onReplay: () => void,
 ): BeamPanel {
   const root = document.createElement('div');
 
@@ -36,19 +37,18 @@ export function buildBeamPanel(
   h.textContent = 'Lab Balok 3D';
   const cap = document.createElement('p');
   cap.className = 'caption';
-  cap.textContent = 'IPE300 · S355 — geser slider, 3D + diagram + angka ikut bersama.';
+  cap.textContent = 'Geser slider — 3D, diagram, dan angka berubah bersamaan.';
   root.append(h, cap);
 
   const modeSeg = new SegmentedControl(
     [
       { value: 'explore', label: 'Explore' },
       { value: 'explain', label: 'Explain' },
-      { value: 'sim', label: 'Simulation' },
     ],
     'explore',
     (v) => {
-      onMode(v);
       explainBlock.style.display = v === 'explain' ? 'block' : 'none';
+      results.style.display = v === 'explain' ? 'none' : 'block';
     },
   );
   root.append(modeSeg.el);
@@ -61,7 +61,7 @@ export function buildBeamPanel(
     get: () => number,
     set: (v: number) => void,
     fmt: (v: number) => string,
-  ): HTMLDivElement => {
+  ): { row: HTMLDivElement; slider: IOSSlider } => {
     const row = document.createElement('div');
     row.className = 'param-row';
     const lab = document.createElement('label');
@@ -77,20 +77,26 @@ export function buildBeamPanel(
     }, label);
     val.textContent = fmt(get());
     row.append(lab, slider.el);
-    return row;
+    return { row, slider };
   };
 
-  root.append(sliderRow('Panjang bentang L', 2, 10, 0.1, () => params.span, (v) => { params.span = v; params.loadAt = Math.min(params.loadAt, v); }, fmtLength));
-  const loadSlider = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
-  root.append(loadSlider);
-  const posSlider = sliderRow('Posisi beban a', 0.5, 10, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
-  root.append(posSlider);
+  let posSlider: { row: HTMLDivElement; slider: IOSSlider } | null = null;
+  const spanRow = sliderRow('Panjang bentang L', 2, 10, 0.1, () => params.span, (v) => {
+    params.span = v;
+    params.loadAt = Math.min(params.loadAt, v); // beban tak boleh di luar bentang
+    if (posSlider) posSlider.slider.set(params.loadAt, false);
+  }, fmtLength);
+  root.append(spanRow.row);
+  const loadRow = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
+  root.append(loadRow.row);
+  posSlider = sliderRow('Posisi beban a', 0.5, 10, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
+  root.append(posSlider.row);
 
   // Tipe beban: titik / merata — sembunyikan "posisi beban" saat merata
   const loadTypeLabel = document.createElement('div');
   loadTypeLabel.className = 'param-label';
   loadTypeLabel.textContent = 'Tipe beban';
-  const loadTypeName = loadSlider.querySelector('label > span:first-child');
+  const loadTypeName = loadRow.row.querySelector('label > span:first-child');
   const loadTypeSeg = new SegmentedControl(
     [
       { value: 'point', label: 'Titik' },
@@ -99,13 +105,13 @@ export function buildBeamPanel(
     params.loadType ?? 'point',
     (v) => {
       params.loadType = v;
-      posSlider.style.display = v === 'point' ? '' : 'none';
+      posSlider.row.style.display = v === 'point' ? '' : 'none';
       if (loadTypeName) loadTypeName.textContent = v === 'point' ? 'Beban P' : 'Beban merata w';
       onChange();
     },
   );
   if ((params.loadType ?? 'point') === 'udl') {
-    posSlider.style.display = 'none';
+    posSlider.row.style.display = 'none';
     if (loadTypeName) loadTypeName.textContent = 'Beban merata w';
   }
   root.append(loadTypeLabel, loadTypeSeg.el);
@@ -164,6 +170,14 @@ export function buildBeamPanel(
   });
   root.append(secLabel, secSel);
 
+  // Tombol replay: animasi beban 0→penuh dimainkan ulang (pengganti mode Simulation).
+  const replayBtn = document.createElement('button');
+  replayBtn.type = 'button';
+  replayBtn.className = 'replay-btn';
+  replayBtn.textContent = 'Putar ulang animasi';
+  replayBtn.addEventListener('click', () => onReplay());
+  root.append(replayBtn);
+
   // Blok hasil
   const results = document.createElement('div');
   results.className = 'result-block';
@@ -215,11 +229,11 @@ export function buildBeamPanel(
     );
   };
 
-  const setMode = (m: 'explore' | 'explain' | 'sim'): void => {
+  const setMode = (m: 'explore' | 'explain'): void => {
     modeSeg.select(m);
   };
 
-  return { el: root, getParams: () => params, showResults, setMode };
+  return { el: root, getParams: () => params, showResults, setMode, replayBtn };
 }
 
 function step(formula: string, detail: string): HTMLDivElement {

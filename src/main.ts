@@ -81,11 +81,9 @@ async function main(): Promise<void> {
   const panel = buildBeamPanel(
     params,
     () => scheduleSolve(),
-    (m) => {
-      if (m === 'sim') {
-        anim.setFactor(0, 1); // replay ramp beban
-        scheduleSolve();
-      }
+    () => {
+      anim.setFactor(0, 1); // replay ramp beban 0→penuh
+      scheduleSolve();
     },
   );
   panelHost.append(panel.el);
@@ -130,6 +128,24 @@ async function main(): Promise<void> {
     nav.append(btn);
   }
   sidebar.append(brand, nav);
+
+  // Toggle tema terang/gelap
+  const themeBtn = document.createElement('button');
+  themeBtn.type = 'button';
+  themeBtn.className = 'module-btn theme-btn';
+  themeBtn.append(icon('sun-moon', 18));
+  const themeLabel = document.createElement('span');
+  themeLabel.textContent = 'Tema terang';
+  themeBtn.append(themeLabel);
+  const applyTheme = (light: boolean): void => {
+    document.documentElement.dataset.theme = light ? 'light' : 'dark';
+    themeLabel.textContent = light ? 'Tema gelap' : 'Tema terang';
+    sm.setTheme(light);
+  };
+  themeBtn.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme !== 'light');
+  });
+  sidebar.append(themeBtn);
   document.body.append(sidebar);
 
   // ===== Disclaimer =====
@@ -172,11 +188,15 @@ async function main(): Promise<void> {
       samples.map((s) => s.y),
     );
     // material 3D ikut material terpilih (tekstur kayu/beton)
-    const newMat = material3D(material(), textures);
-    view.setBeamMaterial(newMat);
+    view.setBeamMaterial(material3D(material(), textures));
+    const geoChanged = view.span !== params.span || view.support !== params.support
+      || view.sectionId !== params.sectionId || view.matId !== params.materialId;
+    if (geoChanged) deformScaleVal = 0; // skala deformasi dihitung ulang (dijangkar geometri baru)
+    view.matId = params.materialId;
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
-    sm.fitTo(params.span, view.beamCenterY);
+    // Kamera hanya re-fit saat geometri berubah — bukan tiap geser slider beban.
+    if (geoChanged) sm.fitTo(params.span, view.beamCenterY);
     currentSol = sol;
   };
 
@@ -220,11 +240,12 @@ async function main(): Promise<void> {
       reactions: currentSol?.reactions ?? { Ra: 0, Rb: 0, Ma: 0 },
     });
 
-    // Diagram ikut animasi spring (nilainya sudah dianimasikan BeamAnim)
+    // Diagram ikut animasi spring (nilainya sudah dianimasikan BeamAnim).
+    // Defleksi: bentuk kurva dianimasikan scaled (visual), readout menampilkan δ fisik asli.
     const chartData = (arr: Float64Array, scale = 1): ChartData[] => {
       const out: ChartData[] = [];
       for (let i = 0; i < arr.length; i++) {
-        out.push({ x: (i * params.span) / (RINGS - 1), v: arr[i]! * scale });
+        out.push({ x: (i * params.span) / (RINGS - 1), v: arr[i]! * scale, raw: arr[i] });
       }
       return out;
     };
@@ -233,13 +254,27 @@ async function main(): Promise<void> {
     charts.deflect.update(chartData(anim.y, deformScale()));
   });
 
-  // ===== Deform scale: auto dari defleksi maks (agar selalu terlihat, ~10% bentang) =====
+  // ===== Deform scale: dijangkar ke respons beban referensi 100 kN pada bentang
+  // dan penampang saat ini — δ tampil ∝ beban (P naik → pelengkung nyata bertambah,
+  // P=10 dan P=90 terlihat beda). Fisika linear: respons ∝ P, jadi cukup satu solve. =====
+  const REF_LOAD = 100e3; // N
   let deformScaleVal = 0;
   const deformScale = (): number => {
-    if (currentSol && Math.abs(currentSol.maxDeflection.value) > 1e-9) {
-      deformScaleVal = Math.max(0.1 * params.span / Math.abs(currentSol.maxDeflection.value), 1);
+    if (!currentSol || Math.abs(currentSol.maxDeflection.value) < 1e-9) return 1;
+    if (deformScaleVal === 0) {
+      // satu solve beban referensi: skala = defleksi pada P=100 kN diperbesar 10% bentang
+      const refSol = solveBeam({
+        span: params.span,
+        support: params.support,
+        loads: params.loadType === 'udl'
+          ? [{ type: 'udl', value: REF_LOAD / params.span, from: 0, to: params.span }]
+          : [{ type: 'point', value: REF_LOAD, at: params.loadAt }],
+        section: section(),
+        material: material(),
+      });
+      const refD = Math.abs(refSol.maxDeflection.value);
+      deformScaleVal = refD > 1e-9 ? (0.1 * params.span) / refD : 1;
     }
-    deformScaleVal = deformScaleVal || 1;
     return deformScaleVal;
   };
 

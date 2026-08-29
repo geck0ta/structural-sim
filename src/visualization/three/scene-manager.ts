@@ -23,6 +23,10 @@ export class SceneManager {
   private readonly subscribers = new Set<(dt: number) => void>();
   private running = false;
   private readonly scratchTarget = new THREE.Vector3();
+  private ground!: THREE.Mesh;
+  private grid!: THREE.GridHelper;
+  private keyLight!: THREE.DirectionalLight;
+  private fillLight!: THREE.DirectionalLight;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -62,6 +66,27 @@ export class SceneManager {
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.6);
     fill.position.set(-8, 6, -4);
     this.scene.add(fill);
+    this.keyLight = key;
+    this.fillLight = fill;
+  }
+
+  /** Tema terang: latar/grid/fog lebih terang (3D match tema UI). */
+  setTheme(light: boolean): void {
+    if (light) {
+      this.scene.background = new THREE.Color(0xdfe3ea);
+      this.scene.fog = new THREE.Fog(0xdfe3ea, 30, 90);
+      (this.ground.material as THREE.MeshStandardMaterial).color.set(0xcdd3dc);
+      this.grid.material.color.set(0xb8c0cc);
+      this.keyLight.intensity = 2.8;
+      this.fillLight.intensity = 0.8;
+    } else {
+      this.scene.background = new THREE.Color(0x0d0f12);
+      this.scene.fog = new THREE.Fog(0x0d0f12, 30, 90);
+      (this.ground.material as THREE.MeshStandardMaterial).color.set(0x14171b);
+      this.grid.material.color.set(0x2a3038);
+      this.keyLight.intensity = 2.2;
+      this.fillLight.intensity = 0.6;
+    }
   }
 
   private setupGround(): void {
@@ -75,6 +100,8 @@ export class SceneManager {
     const grid = new THREE.GridHelper(200, 100, 0x2a3038, 0x1d2126);
     grid.position.y = 0.002;
     this.scene.add(grid);
+    this.ground = ground;
+    this.grid = grid;
   }
 
   private bindPointer(canvas: HTMLCanvasElement): void {

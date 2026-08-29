@@ -370,6 +370,33 @@ button:focus-visible,
 
 /* ===== PHASE 3: Beam Lab ===== */
 
+.replay-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  margin: 4px 0 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.replay-btn:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.replay-btn:active {
+  transform: scale(0.97);
+}
+
 .param-label {
   font-size: 12px;
   color: var(--muted);
@@ -441,7 +468,7 @@ select {
   background: color-mix(in srgb, #ff453a 12%, var(--glass-bg));
 }
 
-/* chart host: timeline bawah jadi 3 diagram side-by-side */
+/* chart host: timeline bawah jadi 3 diagram side-by-side, masing-masing kartu terpisah */
 #timeline {
   flex-direction: row;
   align-items: stretch;
@@ -461,6 +488,7 @@ select {
   height: 84px;
   min-width: 0;
   display: block;
+  overflow: visible;
 }
 
 .minichart {

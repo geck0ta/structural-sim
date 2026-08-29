@@ -6,7 +6,8 @@ const PAD = 16;
 
 export interface ChartData {
   readonly x: number; // m
-  readonly v: number; // nilai seri (V N / M N·m / y m)
+  readonly v: number; // nilai seri (V N / M N·m / y m) — visual (scaled untuk δ)
+  readonly raw?: number; // nilai fisik asli untuk readout (δ tak diperbesar)
 }
 
 export const CHART_COLORS = { shear: '#ff9f0a', moment: '#ff375f', deflect: '#30d158' } as const;
@@ -15,6 +16,7 @@ export const CHART_COLORS = { shear: '#ff9f0a', moment: '#ff375f', deflect: '#30
 export class MiniChart {
   readonly el: SVGSVGElement;
   private readonly plot: SVGPathElement;
+  private readonly plotGroup: SVGGElement;
   private readonly fill: SVGPathElement;
   private readonly zero: SVGLineElement;
   private readonly tip: SVGLineElement;
@@ -40,6 +42,20 @@ export class MiniChart {
     this.fill = document.createElementNS(NS, 'path');
     this.fill.setAttribute('fill', color);
     this.fill.setAttribute('fill-opacity', '0.14');
+
+    // Clip: kurva + fill + crosshair tak keluar kotak chart.
+    const clip = document.createElementNS(NS, 'clipPath');
+    clip.id = `clip-${label.replace(/\W+/g, '')}-${Math.round(Math.random() * 1e6)}`;
+    const clipRect = document.createElementNS(NS, 'rect');
+    clipRect.setAttribute('x', '0');
+    clipRect.setAttribute('y', '8');
+    clipRect.setAttribute('width', String(w));
+    clipRect.setAttribute('height', String(h - 16));
+    clip.append(clipRect);
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('clip-path', `url(#${clip.id})`);
+    this.el.append(clip, g);
+    this.plotGroup = g;
 
     this.zero = document.createElementNS(NS, 'line');
     this.zero.setAttribute('stroke', 'var(--border)');
@@ -77,7 +93,9 @@ export class MiniChart {
     this.valueEl.setAttribute('text-anchor', 'end');
     this.valueEl.textContent = '';
 
-    this.el.append(this.fill, this.zero, this.plot, this.tip, this.dot, this.labelEl, this.valueEl);
+    // plot elements ter-clip; label/value/zero di atas.
+    this.plotGroup.append(this.fill, this.plot, this.tip, this.dot);
+    this.el.append(this.zero, this.plotGroup, this.labelEl, this.valueEl);
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
@@ -145,7 +163,7 @@ export class MiniChart {
       this.tip.setAttribute('y2', String(this.h - PAD));
       this.dot.setAttribute('cx', String(x));
       this.dot.setAttribute('cy', String(py(p.v)));
-      this.valueEl.textContent = `${this.fmtV(p.v)} @ ${p.x.toPrecision(3)} m`;
+      this.valueEl.textContent = `${this.fmtV(p.raw ?? p.v)} @ ${p.x.toPrecision(3)} m`;
     }
   }
 }

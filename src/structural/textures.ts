@@ -67,23 +67,10 @@ function concreteTexture(): THREE.CanvasTexture {
 export interface MaterialTextures {
   readonly wood: THREE.CanvasTexture;
   readonly concrete: THREE.CanvasTexture;
-  readonly halo: THREE.CanvasTexture;
 }
 
 export function buildTextures(): MaterialTextures {
-  return { wood: woodTexture(), concrete: concreteTexture(), halo: glowHaloTexture() };
-}
-
-/** Halo radial putih untuk dot glow (sprite additive). */
-export function glowHaloTexture(): THREE.CanvasTexture {
-  return canvasTexture(128, (ctx, s) => {
-    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-    g.addColorStop(0, 'rgba(255,255,255,0.9)');
-    g.addColorStop(0.3, 'rgba(255,255,255,0.35)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, s, s);
-  });
+  return { wood: woodTexture(), concrete: concreteTexture() };
 }
 
 export function material3D(m: Material, tex: MaterialTextures): THREE.MeshStandardMaterial {
