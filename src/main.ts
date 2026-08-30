@@ -1,6 +1,5 @@
 import './style.css';
-import { SceneManager } from './visualization/three/scene-manager';
-import { BeamView } from './visualization/three/beam-3d';
+import type { SceneManager } from './visualization/three/scene-manager';
 import { BeamAnim } from './visualization/animation/beam-anim';
 import { MiniChart, CHART_COLORS } from './visualization/diagrams/mini-chart';
 import { buildBeamPanel } from './ui/panels/beam-panel';
@@ -8,7 +7,6 @@ import type { BeamParams } from './ui/panels/beam-panel';
 import { solveBeam } from './structural/beam/beam-solver';
 import type { BeamLoad } from './structural/beam/beam-solver';
 import type { ChartData } from './visualization/diagrams/mini-chart';
-import { buildTextures, material3D } from './structural/textures';
 import { MATERIALS } from './data/materials';
 import { SECTION_PRESETS } from './structural/models/section';
 import { fmtForce, fmtMoment, fmtLength } from './core/units';
@@ -27,9 +25,16 @@ async function main(): Promise<void> {
   canvas.id = 'canvas3d';
   document.body.append(canvas);
 
+  // Three.js + tekstur = chunk terpisah (lazy ~500 kB) — kanvas & UI tampil dulu.
+  const [{ SceneManager: SM }, { BeamView }, { buildTextures, material3D }] = await Promise.all([
+    import('./visualization/three/scene-manager'),
+    import('./visualization/three/beam-3d'),
+    import('./structural/textures'),
+  ]);
+
   let sm: SceneManager;
   try {
-    sm = new SceneManager(canvas);
+    sm = new SM(canvas);
   } catch {
     const msg = document.createElement('div');
     msg.className = 'glass';
@@ -142,6 +147,15 @@ async function main(): Promise<void> {
     nav.append(btn);
   }
   sidebar.append(brand, nav);
+
+  // Toggle panel (mobile only — CSS sembunyikan di desktop)
+  const panelToggle = document.createElement('button');
+  panelToggle.type = 'button';
+  panelToggle.className = 'module-btn panel-toggle';
+  panelToggle.setAttribute('aria-label', 'Panel parameter');
+  panelToggle.append(icon('sliders-horizontal', 18));
+  panelToggle.addEventListener('click', () => document.body.classList.toggle('panel-open'));
+  sidebar.append(panelToggle);
 
   // Toggle tema terang/gelap
   const themeBtn = document.createElement('button');

@@ -4,6 +4,7 @@ import { fmtForce, fmtMoment, fmtStress, fmtLength } from '../../core/units';
 import type { BeamSolution } from '../../structural/beam/beam-solver';
 import { IOSSlider } from '../glass/slider';
 import { SegmentedControl } from '../glass/segmented';
+import { IOSPicker } from '../glass/picker';
 import { icon } from '../glass/icons';
 
 // §17 — panel Lab Balok. Panel DUMB: tak berhitung, hanya menampilkan.
@@ -171,41 +172,34 @@ export function buildBeamPanel(
   );
   root.append(supLabel, supSeg.el);
 
-  // Material & penampang — native select
+  // Material & penampang — iOS picker sheet (konsisten glass, bukan <select> native)
   const matLabel = document.createElement('div');
   matLabel.className = 'param-label';
   matLabel.textContent = 'Material';
-  const matSel = document.createElement('select');
-  for (const m of Object.values(MATERIALS)) {
-    const o = document.createElement('option');
-    o.value = m.name;
-    o.textContent = m.name;
-    if (m.name === MATERIALS[params.materialId]!.name) o.selected = true;
-    matSel.append(o);
-  }
-  matSel.addEventListener('change', () => {
-    const found = Object.entries(MATERIALS).find(([, m]) => m.name === matSel.value);
-    if (found) params.materialId = found[0];
-    onChange();
-  });
-  root.append(matLabel, matSel);
+  const matPicker = new IOSPicker(
+    Object.entries(MATERIALS).map(([id, m]) => ({ id, label: m.name })),
+    params.materialId,
+    (id) => {
+      params.materialId = id;
+      onChange();
+    },
+    'Pilih material',
+  );
+  root.append(matLabel, matPicker.el);
 
   const secLabel = document.createElement('div');
   secLabel.className = 'param-label';
   secLabel.textContent = 'Penampang';
-  const secSel = document.createElement('select');
-  for (const s of SECTION_PRESETS) {
-    const o = document.createElement('option');
-    o.value = s.id;
-    o.textContent = s.name;
-    if (s.id === params.sectionId) o.selected = true;
-    secSel.append(o);
-  }
-  secSel.addEventListener('change', () => {
-    params.sectionId = secSel.value;
-    onChange();
-  });
-  root.append(secLabel, secSel);
+  const secPicker = new IOSPicker(
+    SECTION_PRESETS.map((s) => ({ id: s.id, label: s.name })),
+    params.sectionId,
+    (id) => {
+      params.sectionId = id;
+      onChange();
+    },
+    'Pilih penampang',
+  );
+  root.append(secLabel, secPicker.el);
 
   // Tombol replay: animasi beban 0→penuh dimainkan ulang (pengganti mode Simulation).
   const replayBtn = document.createElement('button');
