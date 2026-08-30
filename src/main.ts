@@ -144,6 +144,13 @@ async function main(): Promise<void> {
   });
   panel.mathRow.append(mathToggle);
 
+  // Skip-link a11y (§14): Tab pertama → langsung ke panel parameter.
+  const skip = document.createElement('a');
+  skip.href = '#panel';
+  skip.className = 'skip-link';
+  skip.textContent = 'Lompat ke panel parameter';
+  document.body.append(skip);
+
   // ===== Sidebar 6 modul (§17 — nav utama; modul dibangun fase berikutnya disabled) =====
   const MODULES = [
     { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },

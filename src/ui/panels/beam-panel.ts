@@ -86,6 +86,12 @@ export function buildBeamPanel(
   mathRow.className = 'math-row';
   root.append(mathRow);
 
+  // Section header: parameter (grup pertama)
+  const paramH = document.createElement('h3');
+  paramH.className = 'section-h';
+  paramH.textContent = 'Parameter';
+  root.append(paramH);
+
   const sliderRow = (
     label: string,
     min: number,
@@ -229,6 +235,10 @@ export function buildBeamPanel(
   root.append(replayBtn);
 
   // Blok hasil (skeleton shimmer sampai solve pertama selesai)
+  const resultH = document.createElement('h3');
+  resultH.className = 'section-h';
+  resultH.textContent = 'Hasil';
+  root.append(resultH);
   const results = document.createElement('div');
   results.className = 'result-block';
   for (let i = 0; i < 3; i++) {
