@@ -67,6 +67,20 @@ body {
   }
 }
 
+/* vignette halus tepi viewport — fokus ke tengah (declutter 20); di bawah UI, di atas kanvas */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.2) 100%);
+  z-index: 5;
+}
+
+:root[data-theme='light'] body::after {
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(30, 35, 45, 0.08) 100%);
+}
+
 /* ===== Sidebar rail ===== */
 
 #sidebar {

@@ -121,6 +121,8 @@ export class SceneManager {
     // GridHelper membakar warna ke vertex — matikan agar material.color bisa diganti tema.
     const gm = grid.material as THREE.LineBasicMaterial;
     gm.vertexColors = false;
+    gm.transparent = true;
+    gm.opacity = 0.45; // samar — lantai tak bersaing model (declutter 15)
     gm.needsUpdate = true;
     grid.position.y = 0.002;
     this.scene.add(grid);
@@ -179,9 +181,9 @@ export class SceneManager {
     this.moon.position.set(-0.5, 0.62, 0.42).normalize().multiplyScalar(128);
     this.scene.add(this.moon);
 
-    // Bintang: dua layer Points (kecil padat + sedikit terang).
+    // Bintang: dua layer Points, jumlah DIKENDALIKAN — ambiance, bukan noise (declutter).
     this.stars = new THREE.Group();
-    this.stars.add(makeStars(420, 1.6, 0xffffff), makeStars(40, 2.6, 0xcfe0ff));
+    this.stars.add(makeStars(110, 1.6, 0xffffff, 0.55), makeStars(12, 2.6, 0xcfe0ff, 0.8));
     this.scene.add(this.stars);
 
     // Awan (siang): 4 sprite lembut, drift lambat.
@@ -230,9 +232,9 @@ export class SceneManager {
     );
   }
 
-  /** Auto-fit view ke bounding model (§7) — dipanggil saat modul berganti / model berubah. */
+  /** Auto-fit view ke bounding model (§7) — radius LEBIH DEKAT: model isi ~40% viewport (declutter 9). */
   fitTo(radius: number, targetY = 1): void {
-    this.orbit.radius.target = THREE.MathUtils.clamp(radius * 2.2, 3, 60);
+    this.orbit.radius.target = THREE.MathUtils.clamp(radius * 1.45, 3, 60);
     this.orbit.targetY.target = targetY;
     this.orbit.targetX.target = 0;
     // Reset view penuh: theta/phi kembali ke awal (spring, halus).
@@ -364,7 +366,7 @@ function glowTex(kind: 'sun' | 'moon' | 'cloud'): THREE.CanvasTexture {
 }
 
 /** Bintang: THREE.Points di hemisphere atas — tajam (bukan tekstur blur). */
-function makeStars(count: number, size: number, color: number): THREE.Points {
+function makeStars(count: number, size: number, color: number, opacity: number): THREE.Points {
   const pos = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     const az = Math.random() * Math.PI * 2;
@@ -378,6 +380,6 @@ function makeStars(count: number, size: number, color: number): THREE.Points {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   return new THREE.Points(
     g,
-    new THREE.PointsMaterial({ size, sizeAttenuation: false, color, transparent: true, opacity: 0.9, fog: false, depthWrite: false }),
+    new THREE.PointsMaterial({ size, sizeAttenuation: false, color, transparent: true, opacity, fog: false, depthWrite: false }),
   );
 }
