@@ -27,6 +27,8 @@ export class SceneManager {
   private grid!: THREE.GridHelper;
   private keyLight!: THREE.DirectionalLight;
   private fillLight!: THREE.DirectionalLight;
+  private readonly ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  private skyDome!: THREE.Mesh;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -48,6 +50,7 @@ export class SceneManager {
 
     this.setupLights();
     this.setupGround();
+    this.setupSky();
     this.bindPointer(canvas);
     this.bindVisibility();
   }
@@ -62,7 +65,7 @@ export class SceneManager {
     key.shadow.camera.left = key.shadow.camera.bottom = -15;
     key.shadow.camera.right = key.shadow.camera.top = 15;
     this.scene.add(key);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    this.scene.add(this.ambient);
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.6);
     fill.position.set(-8, 6, -4);
     this.scene.add(fill);
@@ -74,19 +77,22 @@ export class SceneManager {
   setTheme(light: boolean): void {
     if (light) {
       this.scene.background = new THREE.Color(0xdfe3ea);
-      this.scene.fog = new THREE.Fog(0xdfe3ea, 30, 90);
-      (this.ground.material as THREE.MeshStandardMaterial).color.set(0xcdd3dc);
-      this.grid.material.color.set(0xb8c0cc);
+      this.scene.fog = new THREE.Fog(0xdfe3ea, 40, 130);
+      (this.ground.material as THREE.MeshStandardMaterial).color.set(0xdadfe6);
+      this.grid.material.color.set(0xc3cad4);
+      this.ambient.intensity = 0.55;
       this.keyLight.intensity = 2.8;
       this.fillLight.intensity = 0.8;
     } else {
       this.scene.background = new THREE.Color(0x0d0f12);
-      this.scene.fog = new THREE.Fog(0x0d0f12, 30, 90);
+      this.scene.fog = new THREE.Fog(0x0d0f12, 40, 130);
       (this.ground.material as THREE.MeshStandardMaterial).color.set(0x14171b);
       this.grid.material.color.set(0x2a3038);
+      this.ambient.intensity = 0.35;
       this.keyLight.intensity = 2.2;
       this.fillLight.intensity = 0.6;
     }
+    this.setSky(!light);
   }
 
   private setupGround(): void {
@@ -98,10 +104,37 @@ export class SceneManager {
     ground.receiveShadow = true;
     this.scene.add(ground);
     const grid = new THREE.GridHelper(200, 100, 0x2a3038, 0x1d2126);
+    // GridHelper membakar warna ke vertex — matikan agar material.color bisa diganti tema.
+    const gm = grid.material as THREE.LineBasicMaterial;
+    gm.vertexColors = false;
+    gm.needsUpdate = true;
     grid.position.y = 0.002;
     this.scene.add(grid);
     this.ground = ground;
     this.grid = grid;
+  }
+
+  /** Langit: dome gradien (prosedural, canvas). Tema terang = siang cerah, gelap = malam berbintang. */
+  private setupSky(): void {
+    this.skyDome = new THREE.Mesh(
+      new THREE.SphereGeometry(150, 24, 16),
+      new THREE.MeshBasicMaterial({
+        map: skyTexture(false),
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+      }),
+    );
+    this.skyDome.renderOrder = -10;
+    this.scene.add(this.skyDome);
+  }
+
+  /** Ganti tekstur langit saat tema berganti. */
+  setSky(night: boolean): void {
+    const mat = this.skyDome.material as THREE.MeshBasicMaterial;
+    mat.map?.dispose();
+    mat.map = skyTexture(night);
+    mat.needsUpdate = true;
   }
 
   private bindPointer(canvas: HTMLCanvasElement): void {
@@ -218,4 +251,110 @@ export class SceneManager {
       }
     });
   }
+}
+
+/** Cache tekstur langit prosedural — dua varian (siang/malam), dibuat sekali. */
+const skyCache = new Map<string, THREE.CanvasTexture>();
+
+/**
+ * Tekstur langit procedural: gradien vertikal + glow benda langit + awan (siang) / bintang (malam).
+ * 1024×1024, wrap horizontal. Dipakai dome BackSide.
+ */
+function skyTexture(night: boolean): THREE.CanvasTexture {
+  const key = night ? 'night' : 'day';
+  const hit = skyCache.get(key);
+  if (hit) return hit;
+  const S = 1024;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext('2d')!;
+  const horizonY = S * 0.62; // horizon di ~62% tinggi (dome: bawah = tanah blur)
+  // Gradien vertikal langit
+  const g = ctx.createLinearGradient(0, 0, 0, S);
+  if (night) {
+    g.addColorStop(0, '#05070d');
+    g.addColorStop(0.45, '#0b1120');
+    g.addColorStop(0.62, '#101a2e');
+    g.addColorStop(0.72, '#1a2436');
+    g.addColorStop(1, '#0d0f12');
+  } else {
+    g.addColorStop(0, '#2f6fd0');
+    g.addColorStop(0.4, '#5b9be5');
+    g.addColorStop(0.62, '#a8cff0');
+    g.addColorStop(0.72, '#e8f1f8');
+    g.addColorStop(1, '#dfe3ea');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+
+  if (night) {
+    // Bintang: titik putih acak, padat ke atas, sebagian berkelip (statis di tekstur)
+    for (let i = 0; i < 340; i++) {
+      const x = Math.random() * S;
+      const y = Math.random() * horizonY * 0.92;
+      const r = Math.random();
+      if (r > 0.97) continue;
+      const size = r > 0.9 ? 1.6 : r > 0.7 ? 1.1 : 0.7;
+      ctx.globalAlpha = 0.35 + Math.random() * 0.65;
+      ctx.fillStyle = Math.random() > 0.85 ? '#cfe0ff' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Bulan + glow
+    const mx = S * 0.74;
+    const my = S * 0.16;
+    const glow = ctx.createRadialGradient(mx, my, 4, mx, my, 110);
+    glow.addColorStop(0, 'rgba(230,238,255,0.5)');
+    glow.addColorStop(0.4, 'rgba(200,215,245,0.14)');
+    glow.addColorStop(1, 'rgba(200,215,245,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(mx - 120, my - 120, 240, 240);
+    ctx.fillStyle = '#e8edf7';
+    ctx.beginPath();
+    ctx.arc(mx, my, 26, 0, Math.PI * 2);
+    ctx.fill();
+    // kawah samar
+    ctx.fillStyle = 'rgba(190,200,220,0.5)';
+    for (const [dx, dy, r] of [[-8, -5, 5], [7, 4, 4], [2, 9, 3], [-5, 8, 2.5]] as const) {
+      ctx.beginPath();
+      ctx.arc(mx + dx, my + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Matahari glow lembut
+    const sx = S * 0.7;
+    const sy = S * 0.18;
+    const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 170);
+    glow.addColorStop(0, 'rgba(255,252,235,0.95)');
+    glow.addColorStop(0.25, 'rgba(255,246,214,0.35)');
+    glow.addColorStop(1, 'rgba(255,246,214,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(sx - 180, sy - 180, 360, 360);
+    // Awan kumulus lembut: elips putih bertumpuk, samar
+    const cloud = (cx: number, cy: number, w: number, alpha: number): void => {
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      const blobs = 7;
+      for (let i = 0; i < blobs; i++) {
+        const bx = cx + (i - blobs / 2) * (w / blobs) + (Math.random() - 0.5) * w * 0.1;
+        const by = cy + Math.sin(i * 1.3 + cx) * w * 0.05;
+        const br = w * (0.16 + Math.random() * 0.12);
+        ctx.beginPath();
+        ctx.ellipse(bx, by, br * 1.5, br, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+    cloud(S * 0.22, S * 0.3, 260, 0.75);
+    cloud(S * 0.52, S * 0.42, 330, 0.55);
+    cloud(S * 0.86, S * 0.35, 230, 0.65);
+    cloud(S * 0.1, S * 0.5, 300, 0.4);
+    cloud(S * 0.68, S * 0.54, 280, 0.35);
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  skyCache.set(key, tex);
+  return tex;
 }

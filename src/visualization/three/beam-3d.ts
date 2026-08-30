@@ -183,6 +183,11 @@ export class BeamView {
     this.beamMat.needsUpdate = true;
   }
 
+  /** Tema: tumpuan lebih terang di tema terang (dark gray hilang di siang hari). */
+  setTheme(light: boolean): void {
+    this.propMat.color.set(light ? 0x8b939c : 0x484f57);
+  }
+
   /** Rebuild geometri (dipanggil saat penampang/panjang/support berubah). */
   setBeam(section: Section, span: number, support: BeamSupport): void {
     this.span = span;

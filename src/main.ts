@@ -158,6 +158,7 @@ async function main(): Promise<void> {
   sidebar.append(panelToggle);
 
   // Toggle tema terang/gelap
+  let themeLight = false;
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
   themeBtn.className = 'module-btn theme-btn';
@@ -168,7 +169,10 @@ async function main(): Promise<void> {
   const applyTheme = (light: boolean): void => {
     document.documentElement.dataset.theme = light ? 'light' : 'dark';
     themeLabel.textContent = light ? 'Tema gelap' : 'Tema terang';
+    themeLight = light;
     sm.setTheme(light);
+    view.setTheme(light);
+    view.setBeamMaterial(material3D(material(), textures, light));
     try {
       localStorage.setItem('sl-theme', light ? 'light' : 'dark');
     } catch { /* abaikan */ }
@@ -223,7 +227,7 @@ async function main(): Promise<void> {
       samples.map((s) => s.y),
     );
     // material 3D ikut material terpilih (tekstur kayu/beton)
-    view.setBeamMaterial(material3D(material(), textures));
+    view.setBeamMaterial(material3D(material(), textures, themeLight));
     const geoChanged = view.span !== params.span || view.support !== params.support
       || view.sectionId !== params.sectionId || view.matId !== params.materialId;
     if (geoChanged) deformScaleVal = 0; // skala deformasi dihitung ulang (dijangkar geometri baru)

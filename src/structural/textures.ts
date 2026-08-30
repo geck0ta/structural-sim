@@ -74,12 +74,17 @@ export function buildTextures(): MaterialTextures {
   return { wood: woodTexture(), concrete: concreteTexture() };
 }
 
-export function material3D(m: Material, tex: MaterialTextures): THREE.MeshStandardMaterial {
+export function material3D(m: Material, tex: MaterialTextures, light = false): THREE.MeshStandardMaterial {
   if (m.name.includes('Kayu')) {
     return new THREE.MeshStandardMaterial({ map: tex.wood, roughness: 0.8, metalness: 0 });
   }
   if (m.name.includes('Beton')) {
     return new THREE.MeshStandardMaterial({ map: tex.concrete, roughness: 0.95, metalness: 0 });
   }
-  return new THREE.MeshStandardMaterial({ color: 0x97a1ab, roughness: 0.45, metalness: 0.7 });
+  // Baja netral; tema terang → lebih terang (metal gelap tanpa envMap).
+  return new THREE.MeshStandardMaterial({
+    color: light ? 0xc4cad2 : 0x97a1ab,
+    roughness: 0.5,
+    metalness: light ? 0.45 : 0.7,
+  });
 }
