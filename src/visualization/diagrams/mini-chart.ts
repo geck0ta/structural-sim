@@ -1,39 +1,41 @@
-// §17 — diagram companion SVG (hand-written, tanpa chart lib): SFD, BMD, defleksi.
-// Live-synced dengan 3D: sumber data sama (samples solver), warna tema glass.
+// §12 — MiniChart SVG hand-written: garis + fill gradien + crosshair hover.
+// Declutter 10-14: label sumbu hanya chart terakhir, readout hover mengikuti titik,
+// label nilai puncak, 2 tick horizontal halus. Semua warna via .style.* (bukan atribut).
 
 const NS = 'http://www.w3.org/2000/svg';
-const PAD = 16;
+const PAD = 8;
 
 export interface ChartData {
-  readonly x: number; // m
-  readonly v: number; // nilai seri (V N / M N·m / y m) — visual (scaled untuk δ)
-  readonly raw?: number; // nilai fisik asli untuk readout (δ tak diperbesar)
+  x: number;
+  v: number;
+  raw?: number;
 }
 
 export const CHART_COLORS = { shear: '#ff9f0a', moment: '#ff375f', deflect: '#30d158' } as const;
 
-/** Chart satu seri: garis + area fill gradien dari garis nol + gridline + crosshair + readout. */
 export class MiniChart {
   readonly el: SVGSVGElement;
-  private readonly fill: SVGPathElement;
+  onHover: ((x: number | null) => void) | null = null;
+  private data: readonly ChartData[] = [];
+  private hoverI = -1;
   private readonly grad: SVGLinearGradientElement;
-  private readonly plot: SVGPathElement;
-  private readonly plotGroup: SVGGElement;
+  private readonly fill: SVGPathElement;
   private readonly zero: SVGLineElement;
+  private readonly tickA: SVGLineElement;
+  private readonly tickB: SVGLineElement;
+  private readonly plot: SVGPathElement;
   private readonly tip: SVGLineElement;
   private readonly dot: SVGCircleElement;
   private readonly labelEl: SVGTextElement;
-  private readonly x0El: SVGTextElement;
-  private readonly axisEl: SVGTextElement;
-  private data: readonly ChartData[] = [];
-  private hoverI = -1;
-  /** Callback hover: x meter (atau null saat pointerleave) — untuk sinkron 3D. */
-  onHover: ((x: number | null) => void) | null = null;
+  private readonly readoutEl: SVGTextElement;
+  private readonly peakEl: SVGTextElement;
+  private readonly x0El: SVGTextElement | null;
+  private readonly axisEl: SVGTextElement | null;
   private readonly fmtV: (v: number) => string;
   private readonly w: number;
   private readonly h: number;
 
-  constructor(label: string, unit: string, color: string, w: number, h: number, fmtV: (v: number) => string) {
+  constructor(label: string, unit: string, color: string, w: number, h: number, fmtV: (v: number) => string, axisLabels = false) {
     this.fmtV = fmtV;
     this.w = w;
     this.h = h;
@@ -43,7 +45,7 @@ export class MiniChart {
     this.el.setAttribute('role', 'img');
     this.el.setAttribute('aria-label', label);
 
-    // Area fill: gradien warna seri memudar dari garis nol (puncak 0.18, dua arah).
+    // Area fill: gradien memudar dari garis nol (puncak 0.18, dua arah).
     const gid = `grad-${Math.round(Math.random() * 1e6)}`;
     this.grad = document.createElementNS(NS, 'linearGradient');
     this.grad.id = gid;
@@ -69,8 +71,19 @@ export class MiniChart {
     this.fill = document.createElementNS(NS, 'path');
     this.fill.setAttribute('fill', `url(#${gid})`);
 
-    // Garis nol putus-putus (referensi); tanpa gridline — chart langsung di atas kanvas.
+    // Garis nol putus-putus + 2 tick halus ±setengah skala (declutter 12 — tanpa angka).
     this.zero = document.createElementNS(NS, 'line');
+    this.zero.style.stroke = 'var(--border)';
+    this.zero.setAttribute('stroke-dasharray', '3 3');
+    this.zero.setAttribute('stroke-width', '1');
+    this.tickA = document.createElementNS(NS, 'line');
+    this.tickB = document.createElementNS(NS, 'line');
+    for (const t of [this.tickA, this.tickB]) {
+      t.style.stroke = 'var(--border)';
+      t.setAttribute('stroke-dasharray', '2 5');
+      t.setAttribute('stroke-width', '0.75');
+      (t.style as CSSStyleDeclaration & { opacity: string }).opacity = '0.6';
+    }
 
     // Clip: kurva + crosshair tak keluar kotak chart.
     const clip = document.createElementNS(NS, 'clipPath');
@@ -120,28 +133,56 @@ export class MiniChart {
     unitEl.setAttribute('font-weight', '400');
     this.labelEl.append(unitEl);
 
-    // Sumbu bawah: '0' kiri; kanan = panjang bentang, jadi readout saat hover.
-    this.x0El = document.createElementNS(NS, 'text');
-    this.x0El.setAttribute('x', '4');
-    this.x0El.setAttribute('y', String(h - 2));
-    this.x0El.style.fill = 'var(--muted)';
-    this.x0El.setAttribute('font-size', '9');
-    this.x0El.textContent = '0';
-    this.axisEl = document.createElementNS(NS, 'text');
-    this.axisEl.setAttribute('x', String(w - 4));
-    this.axisEl.setAttribute('y', String(h - 2));
-    this.axisEl.style.fill = 'var(--muted)';
-    this.axisEl.setAttribute('font-size', '9');
-    this.axisEl.setAttribute('text-anchor', 'end');
-    this.axisEl.textContent = '';
+    // Label nilai puncak (declutter 11) — angka di titik ekstrem, muted.
+    this.peakEl = document.createElementNS(NS, 'text');
+    this.peakEl.setAttribute('font-size', '9');
+    this.peakEl.setAttribute('text-anchor', 'middle');
+    this.peakEl.style.fill = 'var(--muted)';
+    (this.peakEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
+    this.peakEl.style.stroke = 'var(--bg)';
+    this.peakEl.setAttribute('stroke-width', '3');
 
-    // fill paling belakang; plot ter-clip; label & sumbu di atasnya.
-    this.plotGroup.append(this.fill, this.plot, this.tip, this.dot);
-    this.el.append(defs, this.zero, this.plotGroup, this.labelEl, this.x0El, this.axisEl);
+    // Readout hover (declutter 14): nilai @ posisi, mengikuti titik — bukan di sumbu.
+    this.readoutEl = document.createElementNS(NS, 'text');
+    this.readoutEl.setAttribute('font-size', '9');
+    this.readoutEl.setAttribute('text-anchor', 'middle');
+    this.readoutEl.style.fill = 'var(--fg)';
+    this.readoutEl.setAttribute('font-weight', '500');
+    (this.readoutEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
+    this.readoutEl.style.stroke = 'var(--bg)';
+    this.readoutEl.setAttribute('stroke-width', '3');
+    this.readoutEl.style.display = 'none';
+
+    // Sumbu bawah statis HANYA di chart terakhir (declutter 10 — digabung, tak diulang 3x).
+    if (axisLabels) {
+      this.x0El = document.createElementNS(NS, 'text');
+      this.x0El.setAttribute('x', '4');
+      this.x0El.setAttribute('y', String(h - 2));
+      this.x0El.style.fill = 'var(--muted)';
+      this.x0El.setAttribute('font-size', '9');
+      this.x0El.textContent = '0';
+      this.axisEl = document.createElementNS(NS, 'text');
+      this.axisEl.setAttribute('x', String(w - 4));
+      this.axisEl.setAttribute('y', String(h - 2));
+      this.axisEl.style.fill = 'var(--muted)';
+      this.axisEl.setAttribute('font-size', '9');
+      this.axisEl.setAttribute('text-anchor', 'end');
+      this.axisEl.textContent = '';
+      this.el.append(this.x0El, this.axisEl);
+    } else {
+      this.x0El = null;
+      this.axisEl = null;
+    }
+
+    // fill+tick paling belakang; plot ter-clip; label & readout di atasnya.
+    this.plotGroup.append(this.tickA, this.tickB, this.fill, this.plot, this.tip, this.dot);
+    this.el.append(defs, this.zero, this.plotGroup, this.labelEl, this.peakEl, this.readoutEl);
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
   }
+
+  private readonly plotGroup: SVGGElement;
 
   private onMove(e: PointerEvent): void {
     if (!this.data.length) return;
@@ -156,7 +197,8 @@ export class MiniChart {
     const on = i >= 0 && this.data.length > 0;
     this.tip.style.display = on ? 'block' : 'none';
     this.dot.style.display = on ? 'block' : 'none';
-    // Callback UI lain (marker 3D sinkron) — x dalam meter, null = lepas.
+    this.readoutEl.style.display = on ? 'block' : 'none';
+    // Callback UI lain (crosshair 3D sinkron) — x dalam meter, null = lepas.
     this.onHover?.(on ? this.data[i]!.x : null);
     this.render();
   }
@@ -189,10 +231,33 @@ export class MiniChart {
     this.plot.setAttribute('d', dd);
     this.fill.setAttribute('d', `${dd} L${px(n - 1).toFixed(1)},${py(0).toFixed(1)} L${px(0).toFixed(1)},${py(0).toFixed(1)} Z`);
     const zy = py(0).toFixed(1);
-    this.zero.setAttribute('x1', String(PAD));
-    this.zero.setAttribute('x2', String(this.w - PAD));
-    this.zero.setAttribute('y1', zy);
-    this.zero.setAttribute('y2', zy);
+    for (const z of [this.zero]) {
+      z.setAttribute('x1', String(PAD));
+      z.setAttribute('x2', String(this.w - PAD));
+      z.setAttribute('y1', zy);
+      z.setAttribute('y2', zy);
+    }
+    // Tick ±½skala.
+    const tyA = py(vAbs / 2).toFixed(1);
+    const tyB = py(-vAbs / 2).toFixed(1);
+    this.tickA.setAttribute('x1', String(PAD));
+    this.tickA.setAttribute('x2', String(this.w - PAD));
+    this.tickA.setAttribute('y1', tyA);
+    this.tickA.setAttribute('y2', tyA);
+    this.tickB.setAttribute('x1', String(PAD));
+    this.tickB.setAttribute('x2', String(this.w - PAD));
+    this.tickB.setAttribute('y1', tyB);
+    this.tickB.setAttribute('y2', tyB);
+
+    // Nilai puncak: titik ekstrem |v| maks (skip saat hover menutupi).
+    let peakI = 0;
+    for (let i = 1; i < n; i++) {
+      if (Math.abs(d[i]!.v) > Math.abs(d[peakI]!.v)) peakI = i;
+    }
+    const peak = d[peakI]!;
+    this.peakEl.setAttribute('x', String(Math.min(Math.max(px(peakI), 18), this.w - 18)));
+    this.peakEl.setAttribute('y', String(Math.max(py(peak.v) - 5, 10)));
+    this.peakEl.textContent = peak.v.toPrecision(3);
 
     if (this.hoverI >= 0 && this.hoverI < n) {
       const p = d[this.hoverI]!;
@@ -203,9 +268,15 @@ export class MiniChart {
       this.tip.setAttribute('y2', String(this.h - PAD));
       this.dot.setAttribute('cx', String(x));
       this.dot.setAttribute('cy', String(py(p.v)));
-      this.axisEl.textContent = `${this.fmtV(p.raw ?? p.v)} @ ${p.x.toPrecision(3)} m`;
+      // Readout mengikuti titik, di-clamp agar tak keluar chart.
+      this.readoutEl.setAttribute('x', String(Math.min(Math.max(x, 34), this.w - 34)));
+      const ry = Math.max(py(p.v) - 8, 12);
+      this.readoutEl.setAttribute('y', String(ry));
+      this.readoutEl.textContent = `${this.fmtV(p.raw ?? p.v)} @ ${p.x.toPrecision(3)} m`;
+      this.peakEl.style.display = Math.abs(this.hoverI - peakI) < 6 ? 'none' : 'block';
     } else {
-      this.axisEl.textContent = `${d[n - 1]!.x.toFixed(1)} m`;
+      this.peakEl.style.display = 'block';
+      if (this.axisEl) this.axisEl.textContent = `${d[n - 1]!.x.toFixed(1)} m`;
     }
   }
 }

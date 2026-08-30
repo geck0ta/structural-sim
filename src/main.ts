@@ -105,7 +105,7 @@ async function main(): Promise<void> {
   const charts = {
     shear: new MiniChart('Gaya geser V(x)', 'kN', CHART_COLORS.shear, 260, 64, fmtForce),
     moment: new MiniChart('Momen M(x)', 'kN·m', CHART_COLORS.moment, 260, 64, fmtMoment),
-    deflect: new MiniChart('Defleksi y(x)', 'mm', CHART_COLORS.deflect, 260, 64, fmtLength),
+    deflect: new MiniChart('Defleksi y(x)', 'mm', CHART_COLORS.deflect, 260, 64, fmtLength, true), // sumbu gabung: label hanya di chart terakhir
   };
   // Hover chart mana pun → crosshair 3D di x sama (sinkron 2D→3D).
   for (const c of Object.values(charts)) c.onHover = (x) => view.setCrosshair(x);
