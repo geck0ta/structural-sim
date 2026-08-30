@@ -151,15 +151,11 @@ async function main(): Promise<void> {
   skip.textContent = 'Lompat ke panel parameter';
   document.body.append(skip);
 
-  // ===== Sidebar 6 modul (§17 — nav utama; modul dibangun fase berikutnya disabled) =====
+  // ===== Sidebar (declutter: modul belum siap = SATU baris hint, bukan 5 tombol redup) =====
   const MODULES = [
     { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },
-    { id: 'math', label: 'Matematika', icon: 'sigma', ready: false },
-    { id: 'fem', label: 'FEM', icon: 'grid-3x3', ready: false },
-    { id: 'dyn', label: 'Gempa / Dinamika', icon: 'activity', ready: false },
-    { id: 'loads', label: 'Beban Lingkungan', icon: 'wind', ready: false },
-    { id: 'model3d', label: 'Model 3D', icon: 'boxes', ready: false },
   ] as const;
+  const SOON = 'FEM · Gempa · Beban · Model 3D — segera';
 
   const sidebar = document.createElement('aside');
   sidebar.id = 'sidebar';
@@ -191,6 +187,11 @@ async function main(): Promise<void> {
     }
     nav.append(btn);
   }
+  // Hint modul mendatang — satu baris muted, bukan 5 tombol disabled
+  const soon = document.createElement('div');
+  soon.className = 'sidebar-soon';
+  soon.textContent = SOON;
+  nav.append(soon);
   sidebar.append(brand, nav);
 
   // Toggle panel (mobile only — CSS sembunyikan di desktop)
@@ -202,17 +203,14 @@ async function main(): Promise<void> {
   panelToggle.addEventListener('click', () => document.body.classList.toggle('panel-open'));
   sidebar.append(panelToggle);
 
-  // Toggle tema terang/gelap
+  // ===== Toggle tema — tombol floating pojok kanan atas viewport (bukan di sidebar) =====
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
-  themeBtn.className = 'module-btn theme-btn';
+  themeBtn.className = 'ghost-btn theme-float';
+  themeBtn.setAttribute('aria-label', 'Ganti tema terang/gelap');
   themeBtn.append(icon('sun-moon', 18));
-  const themeLabel = document.createElement('span');
-  themeLabel.textContent = 'Tema terang';
-  themeBtn.append(themeLabel);
   const applyTheme = (light: boolean): void => {
     document.documentElement.dataset.theme = light ? 'light' : 'dark';
-    themeLabel.textContent = light ? 'Tema gelap' : 'Tema terang';
     themeLight = light;
     sm.setTheme(light);
     view.setTheme(light);
@@ -228,14 +226,8 @@ async function main(): Promise<void> {
   themeBtn.addEventListener('click', () => {
     applyTheme(document.documentElement.dataset.theme !== 'light');
   });
-  sidebar.append(themeBtn);
+  document.body.append(themeBtn);
   document.body.append(sidebar);
-
-  // ===== Disclaimer =====
-  const dis = document.createElement('div');
-  dis.className = 'disclaimer';
-  dis.textContent = 'Educational simulation — not a substitute for professional structural engineering design or verification.';
-  panelHost.append(dis);
 
   // ===== Solve + wire =====
   let solveScheduled = false;

@@ -45,28 +45,26 @@ export function buildBeamPanel(
   cap.textContent = 'Geser slider — 3D, diagram, dan angka berubah bersamaan.';
   root.append(h, cap);
 
-  // Preset kasus umum — one-tap demo (§17 onboarding)
-  const chips = document.createElement('div');
-  chips.className = 'chips';
-  // Deferred sync: chip dibuat sebelum kontrol ada; callback jalan saat diklik.
+  // Preset kasus umum → satu picker "Contoh kasus" (declutter: bukan 3 chip wrap)
   const onChipClick: Array<() => void> = [];
-  const chip = (label: string, apply: () => void): void => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chip';
-    b.textContent = label;
-    b.addEventListener('click', () => {
-      apply();
+  const presets = [
+    { id: 'cantilever', label: 'Uji kantilever — P di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; } },
+    { id: 'bridge', label: 'Jembatan SS — beban di tengah', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; } },
+    { id: 'udl', label: 'Beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 40e3; params.loadType = 'udl'; } },
+  ];
+  const presetPicker = new IOSPicker(
+    presets.map((p) => ({ id: p.id, label: p.label })),
+    presets[0].id,
+    (id) => {
+      const p = presets.find((x) => x.id === id)!;
+      p.apply();
       if (params.support === 'cantilever') params.loadAt = params.span;
       for (const f of onChipClick) f();
       onChange();
-    });
-    chips.append(b);
-  };
-  chip('Uji kantilever', () => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; });
-  chip('Jembatan SS', () => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; });
-  chip('Beban merata', () => { params.support = 'ss'; params.span = 8; params.loadP = 40e3; params.loadType = 'udl'; });
-  root.append(chips);
+    },
+    'Contoh kasus',
+  );
+  root.append(presetPicker.el);
 
   const modeSeg = new SegmentedControl(
     [
@@ -79,18 +77,19 @@ export function buildBeamPanel(
       results.style.display = v === 'explain' ? 'none' : 'block';
     },
   );
-  root.append(modeSeg.el);
-
+  // Satu baris mode: Explore/Explain kiri + toggle ribbon kanan (declutter)
+  const modeRow = document.createElement('div');
+  modeRow.className = 'mode-row';
   // Row opsional — diisi main.ts (toggle ribbon Matematika).
   const mathRow = document.createElement('div');
   mathRow.className = 'math-row';
-  root.append(mathRow);
+  modeRow.append(modeSeg.el, mathRow);
+  root.append(modeRow);
 
-  // Section header: parameter (grup pertama)
-  const paramH = document.createElement('h3');
-  paramH.className = 'section-h';
-  paramH.textContent = 'Parameter';
-  root.append(paramH);
+  // Divider parameter (declutter: teks header dihapus, spacing cukup)
+  const paramDiv = document.createElement('div');
+  paramDiv.className = 'panel-div';
+  root.append(paramDiv);
 
   const sliderRow = (
     label: string,
@@ -235,10 +234,9 @@ export function buildBeamPanel(
   root.append(replayBtn);
 
   // Blok hasil (skeleton shimmer sampai solve pertama selesai)
-  const resultH = document.createElement('h3');
-  resultH.className = 'section-h';
-  resultH.textContent = 'Hasil';
-  root.append(resultH);
+  const resultDiv = document.createElement('div');
+  resultDiv.className = 'panel-div';
+  root.append(resultDiv);
   const results = document.createElement('div');
   results.className = 'result-block';
   for (let i = 0; i < 3; i++) {
@@ -264,7 +262,7 @@ export function buildBeamPanel(
   explainBlock.append(eh, explainSteps, assum);
   root.append(explainBlock);
 
-  // §11: disclaimer permanen
+  // §11: disclaimer tunggal (satu baris kecil, bukan kartu)
   const disclaimer = document.createElement('p');
   disclaimer.className = 'disclaimer';
   disclaimer.textContent = 'Simulasi edukasi — bukan pengganti desain & verifikasi teknik sipil profesional.';
