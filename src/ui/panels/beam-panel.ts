@@ -27,6 +27,7 @@ export interface BeamPanel {
   readonly showResults: (sol: BeamSolution) => void;
   readonly setMode: (m: 'explore' | 'explain') => void;
   readonly replayBtn: HTMLButtonElement;
+  readonly mathRow: HTMLDivElement;
 }
 
 export function buildBeamPanel(
@@ -78,6 +79,11 @@ export function buildBeamPanel(
     },
   );
   root.append(modeSeg.el);
+
+  // Row opsional — diisi main.ts (toggle ribbon Matematika).
+  const mathRow = document.createElement('div');
+  mathRow.className = 'math-row';
+  root.append(mathRow);
 
   const sliderRow = (
     label: string,
@@ -295,7 +301,7 @@ export function buildBeamPanel(
     modeSeg.select(m);
   };
 
-  return { el: root, getParams: () => params, showResults, setMode, replayBtn };
+  return { el: root, getParams: () => params, showResults, setMode, replayBtn, mathRow };
 }
 
 function step(formula: string, detail: string): HTMLDivElement {

@@ -575,6 +575,17 @@ select {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+.chip.on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.math-row {
+  display: flex;
+  margin-bottom: 14px;
+}
+
 .result-row {
   display: flex;
   justify-content: space-between;

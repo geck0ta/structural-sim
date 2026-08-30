@@ -2,12 +2,9 @@ import * as THREE from 'three';
 import type { Section } from '../../structural/models/types';
 import type { BeamSupport } from '../../structural/beam/beam-solver';
 import type { BeamAnim } from '../animation/beam-anim';
-import { fmtForce } from '../../core/units';
 
 // §7/§17 — Lab Balok 3D: profil penampang ASLI (IPE300 dsb.) di-sweep mengikuti
 // kurva defleksi y(x). Satu BufferGeometry, posisi di-update per frame (tanpa rebuild).
-// Gaya = panah KECIL SIMPLE, panjang konstan, ujung menempel permukaan terdeformasi.
-// Defleksi diperbesar — skala dari main.
 
 const STEEL = 0x97a1ab;
 const SUPPORT_COLOR = 0x484f57;
@@ -27,46 +24,6 @@ class ForceArrow {
     this.group.visible = false;
   }
 }
-
-/** Sprite teks kecil (kanvas): label nilai Ra/Rb/P langsung di scene. Redraw hanya saat teks berubah. */
-class TextSprite {
-  readonly sprite: THREE.Sprite;
-  private readonly ctx: CanvasRenderingContext2D;
-  private readonly tex: THREE.CanvasTexture;
-  private last = '';
-  constructor() {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 64;
-    this.ctx = c.getContext('2d')!;
-    this.tex = new THREE.CanvasTexture(c);
-    this.tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.SpriteMaterial({ map: this.tex, transparent: true, depthTest: false });
-    this.sprite = new THREE.Sprite(mat);
-    this.sprite.renderOrder = 20; // selalu terbaca, tak tenggelam di geometri
-    this.sprite.visible = false;
-  }
-  set(text: string): void {
-    if (text === this.last) return;
-    this.last = text;
-    const ctx = this.ctx;
-    ctx.clearRect(0, 0, 256, 64);
-    ctx.font = '600 38px -apple-system, Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; // outline agar terbaca di tema gelap & terang
-    ctx.strokeText(text, 128, 32);
-    ctx.fillStyle = '#f5f5f7';
-    ctx.fillText(text, 128, 32);
-    this.tex.needsUpdate = true;
-    const w = Math.max(ctx.measureText(text).width + 28, 60);
-    this.sprite.scale.set((w / 64) * 0.24, 0.24, 1);
-  }
-}
-
-// §7/§17 — Lab Balok 3D: profil penampang ASLI (IPE300 dsb.) di-sweep mengikuti
-// kurva defleksi y(x). Satu BufferGeometry, posisi di-update per frame (tanpa rebuild).
 
 /** Tekstur blob bayangan kontak (radial gradient) — dibuat SEKALI, dipakai ulang tiap rebuild. */
 let shadowTex: THREE.CanvasTexture | null = null;
@@ -145,9 +102,6 @@ export class BeamView {
   private readonly reactA: ForceArrow;
   private readonly reactB: ForceArrow;
   private readonly udlArrows: ForceArrow[] = [];
-  private readonly labelP = new TextSprite();
-  private readonly labelRa = new TextSprite();
-  private readonly labelRb = new TextSprite();
   private readonly supports = new THREE.Group();
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
@@ -158,8 +112,7 @@ export class BeamView {
     this.loadArrow = new ForceArrow(0xff453a, 0.5);
     this.reactA = new ForceArrow(0xffd60a, 0.3);
     this.reactB = new ForceArrow(0xffd60a, 0.3);
-    this.group.add(this.loadArrow.group, this.reactA.group, this.reactB.group, this.supports,
-      this.labelP.sprite, this.labelRa.sprite, this.labelRb.sprite);
+    this.group.add(this.loadArrow.group, this.reactA.group, this.reactB.group, this.supports);
     for (let i = 0; i < 8; i++) {
       const a = new ForceArrow(0xff453a, 0.32);
       this.udlArrows.push(a);
@@ -361,27 +314,6 @@ export class BeamView {
     // Reaksi (kuning): kecil, di belakang balok, dari bawah tumpuan ke atas
     placeReact(this.reactA, support === 'cantilever' ? 0.25 : 0, show && Math.abs(reactions.Ra) > 1);
     placeReact(this.reactB, this.span, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
-
-    // Label nilai di scene: P di atas titik beban, Ra/Rb di bawah reaksi (sprite kanvas).
-    const lp = show && loadType === 'point' && Math.abs(loadP) > 1;
-    this.labelP.sprite.visible = lp;
-    if (lp) {
-      const x = Math.min(loadAt, this.span);
-      this.labelP.set(fmtForce(loadP));
-      this.labelP.sprite.position.set(x, this.centerY + yAt(x) + this.depth / 2 + 0.75, 0.4);
-    }
-    const la = show && Math.abs(reactions.Ra) > 1;
-    this.labelRa.sprite.visible = la;
-    if (la) {
-      this.labelRa.set(`Ra ${fmtForce(reactions.Ra)}`);
-      this.labelRa.sprite.position.set(support === 'cantilever' ? 0.25 : 0, SUPPORT_H - 0.45, -this.width * 0.75);
-    }
-    const lb = support === 'ss' && show && Math.abs(reactions.Rb) > 1;
-    this.labelRb.sprite.visible = lb;
-    if (lb) {
-      this.labelRb.set(`Rb ${fmtForce(reactions.Rb)}`);
-      this.labelRb.sprite.position.set(this.span, SUPPORT_H - 0.45, -this.width * 0.75);
-    }
   }
 
   dispose(): void {

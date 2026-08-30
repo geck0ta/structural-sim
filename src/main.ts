@@ -131,10 +131,24 @@ async function main(): Promise<void> {
   panelHost.append(panel.el);
   document.body.append(panelHost);
 
+  // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
+  const mathToggle = document.createElement('button');
+  mathToggle.type = 'button';
+  mathToggle.className = 'chip';
+  mathToggle.textContent = 'Ribbon fungsi V/M/y';
+  mathToggle.addEventListener('click', () => {
+    const on = mathToggle.classList.toggle('on');
+    for (const k of ['V', 'M', 'y'] as const) {
+      ribbons[k].group.visible = on;
+      ribbonLabels[k].sprite.visible = on;
+    }
+  });
+  panel.mathRow.append(mathToggle);
+
   // ===== Sidebar 6 modul (§17 — nav utama; modul dibangun fase berikutnya disabled) =====
   const MODULES = [
     { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },
-    { id: 'math', label: 'Matematika', icon: 'sigma', ready: true },
+    { id: 'math', label: 'Matematika', icon: 'sigma', ready: false },
     { id: 'fem', label: 'FEM', icon: 'grid-3x3', ready: false },
     { id: 'dyn', label: 'Gempa / Dinamika', icon: 'activity', ready: false },
     { id: 'loads', label: 'Beban Lingkungan', icon: 'wind', ready: false },
@@ -151,13 +165,10 @@ async function main(): Promise<void> {
   bt.textContent = 'Structural Lab';
   brand.append(bt);
   const nav = document.createElement('nav');
-  let activeModule = 'mech';
-  const moduleBtns: Record<string, HTMLButtonElement> = {};
   for (const m of MODULES) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'module-btn';
-    moduleBtns[m.id] = btn;
     if (!m.ready) {
       btn.setAttribute('aria-disabled', 'true'); // tetap klikable → toast, bukan dead zone
     }
@@ -168,15 +179,8 @@ async function main(): Promise<void> {
     btn.setAttribute('aria-current', String(m.id === 'mech'));
     if (m.ready) {
       btn.addEventListener('click', () => {
-        activeModule = m.id;
         nav.querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', 'false'));
         btn.setAttribute('aria-current', 'true');
-        // Modul Matematika: tampilkan ribbon 3D V(x)/M(x)/y(x)
-        const mathOn = activeModule === 'math';
-        for (const k of ['V', 'M', 'y'] as const) {
-          ribbons[k].group.visible = mathOn;
-          ribbonLabels[k].sprite.visible = mathOn;
-        }
       });
     }
     nav.append(btn);
@@ -302,6 +306,7 @@ async function main(): Promise<void> {
 
   // ===== Frame loop =====
   let needsInit = true;
+  let visualDirty = true; // chart/ribbon hanya redraw saat animasi bergerak / setelah solve (hemat DOM)
   sm.onFrame((dt) => {
     if (solveScheduled) {
       solveScheduled = false;
@@ -313,6 +318,8 @@ async function main(): Promise<void> {
       view.setBeam(section(), params.span, params.support);
     }
     const moving = anim.step(dt);
+    if (!moving && !visualDirty) return; // diam total → skip rebuild chart/ribbon (anti-lag, tak ubah visual)
+    visualDirty = true;
     view.updateDeform(anim, moving || solveScheduled, {
       scale: deformScale() * params.deformScale,
       loadAt: params.loadAt,
@@ -345,6 +352,7 @@ async function main(): Promise<void> {
       ribbonLabels.M.sprite.position.set(-0.35, 1.9 + normScale.m * 0.5, RIBBON_Z);
       ribbonLabels.y.sprite.position.set(-0.35, -0.5 + normScale.y * 0.5, RIBBON_Z);
     }
+    visualDirty = false;
   });
 
   // ===== Deform scale: dijangkar ke respons beban referensi 100 kN pada bentang

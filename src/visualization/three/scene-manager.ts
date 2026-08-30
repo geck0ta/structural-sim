@@ -63,7 +63,7 @@ export class SceneManager {
     const key = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(6, 12, 6);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.near = 0.5;
     key.shadow.camera.far = 60;
     key.shadow.camera.left = key.shadow.camera.bottom = -15;
