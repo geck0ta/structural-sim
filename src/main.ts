@@ -26,10 +26,12 @@ async function main(): Promise<void> {
   document.body.append(canvas);
 
   // Three.js + tekstur = chunk terpisah (lazy ~500 kB) — kanvas & UI tampil dulu.
-  const [{ SceneManager: SM }, { BeamView }, { buildTextures, material3D }] = await Promise.all([
+  const [{ SceneManager: SM }, { BeamView }, { buildTextures, material3D }, { Ribbon }, { CanvasLabel }] = await Promise.all([
     import('./visualization/three/scene-manager'),
     import('./visualization/three/beam-3d'),
     import('./structural/textures'),
+    import('./visualization/three/ribbon'),
+    import('./visualization/three/canvas-label'),
   ]);
 
   let sm: SceneManager;
@@ -70,13 +72,34 @@ async function main(): Promise<void> {
     }
   } catch { /* data korup → default */ }
 
+  let themeLight = false;
+
   const section = (): typeof SECTION_PRESETS[number] => SECTION_PRESETS.find((s) => s.id === params.sectionId) ?? SECTION_PRESETS[0]!;
   const material = (): (typeof MATERIALS)[string] => MATERIALS[params.materialId] ?? MATERIALS.steelS355;
 
   // ===== 3D =====
   const textures = buildTextures();
-  const view = new BeamView(sm.scene, material3D(material(), textures));
+  const view = new BeamView(sm.scene, material3D(material(), textures, themeLight));
   const anim = new BeamAnim(RINGS);
+
+  // ===== Modul Matematika: ribbon 3D V(x)/M(x)/y(x) mengambang di belakang beam =====
+  const RIBBON_Z = -0.6;
+  const ribbons = {
+    V: new Ribbon(params.span, RINGS, RIBBON_Z),
+    M: new Ribbon(params.span, RINGS, RIBBON_Z),
+    y: new Ribbon(params.span, RINGS, RIBBON_Z),
+  };
+  const ribbonLabels = { V: new CanvasLabel(0.3), M: new CanvasLabel(0.3), y: new CanvasLabel(0.3) };
+  ribbonLabels.V.set('V(x)', '#ff9f0a');
+  ribbonLabels.M.set('M(x)', '#ff375f');
+  ribbonLabels.y.set('y(x)', '#30d158');
+  for (const k of ['V', 'M', 'y'] as const) {
+    ribbons[k].group.visible = false;
+    ribbonLabels[k].sprite.visible = false;
+    sm.scene.add(ribbons[k].group, ribbonLabels[k].sprite);
+  }
+  // Normalisasi tinggi ribbon: dihitung dari sampel solver tiap solve (§3 — warna=sign, tinggi=nilai).
+  let normScale = { v: 0, m: 0, y: 0 };
 
   // ===== Diagrams =====
   const charts = {
@@ -111,7 +134,7 @@ async function main(): Promise<void> {
   // ===== Sidebar 6 modul (§17 — nav utama; modul dibangun fase berikutnya disabled) =====
   const MODULES = [
     { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },
-    { id: 'math', label: 'Matematika', icon: 'sigma', ready: false },
+    { id: 'math', label: 'Matematika', icon: 'sigma', ready: true },
     { id: 'fem', label: 'FEM', icon: 'grid-3x3', ready: false },
     { id: 'dyn', label: 'Gempa / Dinamika', icon: 'activity', ready: false },
     { id: 'loads', label: 'Beban Lingkungan', icon: 'wind', ready: false },
@@ -128,10 +151,13 @@ async function main(): Promise<void> {
   bt.textContent = 'Structural Lab';
   brand.append(bt);
   const nav = document.createElement('nav');
+  let activeModule = 'mech';
+  const moduleBtns: Record<string, HTMLButtonElement> = {};
   for (const m of MODULES) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'module-btn';
+    moduleBtns[m.id] = btn;
     if (!m.ready) {
       btn.setAttribute('aria-disabled', 'true'); // tetap klikable → toast, bukan dead zone
     }
@@ -142,8 +168,15 @@ async function main(): Promise<void> {
     btn.setAttribute('aria-current', String(m.id === 'mech'));
     if (m.ready) {
       btn.addEventListener('click', () => {
+        activeModule = m.id;
         nav.querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', 'false'));
         btn.setAttribute('aria-current', 'true');
+        // Modul Matematika: tampilkan ribbon 3D V(x)/M(x)/y(x)
+        const mathOn = activeModule === 'math';
+        for (const k of ['V', 'M', 'y'] as const) {
+          ribbons[k].group.visible = mathOn;
+          ribbonLabels[k].sprite.visible = mathOn;
+        }
       });
     }
     nav.append(btn);
@@ -160,7 +193,6 @@ async function main(): Promise<void> {
   sidebar.append(panelToggle);
 
   // Toggle tema terang/gelap
-  let themeLight = false;
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
   themeBtn.className = 'module-btn theme-btn';
@@ -228,11 +260,19 @@ async function main(): Promise<void> {
       samples.map((s) => s.M),
       samples.map((s) => s.y),
     );
+    // Normalisasi ribbon (Matematika): tinggi maks 0.28 × bentang per fungsi — hindari silang antar ribbon.
+    const maxY = (arr: number[]): number => Math.max(...arr.map((v) => Math.abs(v)), 1e-9);
+    normScale = {
+      v: (0.22 * params.span) / maxY(samples.map((s) => s.V)),
+      m: (0.22 * params.span) / maxY(samples.map((s) => s.M)),
+      y: (0.14 * params.span) / maxY(samples.map((s) => s.y)),
+    };
     // material 3D ikut material terpilih (tekstur kayu/beton)
     view.setBeamMaterial(material3D(material(), textures, themeLight));
     const geoChanged = view.span !== params.span || view.support !== params.support
       || view.sectionId !== params.sectionId || view.matId !== params.materialId;
     if (geoChanged) deformScaleVal = 0; // skala deformasi dihitung ulang (dijangkar geometri baru)
+    for (const k of ['V', 'M', 'y'] as const) ribbons[k].setSpan(params.span);
     view.matId = params.materialId;
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
@@ -294,6 +334,17 @@ async function main(): Promise<void> {
     charts.shear.update(chartData(anim.V));
     charts.moment.update(chartData(anim.M));
     charts.deflect.update(chartData(anim.y, deformScale() * params.deformScale));
+
+    // Ribbon Matematika: ikut spring anim (faktor sama dgn beam), tinggi = nilai ternormalisasi.
+    if (ribbons.V.group.visible) {
+      const ds = deformScale() * params.deformScale;
+      ribbons.V.update(Array.from(anim.V, (v) => v * anim.factor), { scale: normScale.v, offset: 2.6, band: 0.1 });
+      ribbons.M.update(Array.from(anim.M, (v) => v * anim.factor), { scale: normScale.m, offset: 1.9, band: 0.1 });
+      ribbons.y.update(Array.from(anim.y, (v) => v * anim.factor * ds), { scale: normScale.y, offset: -0.5, band: 0.1 });
+      ribbonLabels.V.sprite.position.set(-0.35, 2.6 + normScale.v * 0.5, RIBBON_Z);
+      ribbonLabels.M.sprite.position.set(-0.35, 1.9 + normScale.m * 0.5, RIBBON_Z);
+      ribbonLabels.y.sprite.position.set(-0.35, -0.5 + normScale.y * 0.5, RIBBON_Z);
+    }
   });
 
   // ===== Deform scale: dijangkar ke respons beban referensi 100 kN pada bentang

@@ -23,7 +23,7 @@ export class Ribbon {
   private readonly posAttr: THREE.BufferAttribute;
   private readonly colAttr: THREE.BufferAttribute;
   private readonly n: number;
-  private readonly span: number;
+  private span: number;
 
   constructor(span: number, rings: number, depthZ: number) {
     this.span = span;
@@ -67,15 +67,17 @@ export class Ribbon {
       // vertex bawah & atas pita (pita vertikal menghadap kamera orbit default)
       pos[base] = x; pos[base + 1] = opt.offset + v - opt.band / 2; pos[base + 2] = this.depthZ;
       pos[base + 3] = x; pos[base + 4] = opt.offset + v + opt.band / 2; pos[base + 5] = this.depthZ;
-      // warna per-ring: interpolasi menuju nol (transisi lembut antar sign)
-      const t = Math.min(1, Math.abs(values[i]!) > 1e-12 ? 1 : 0);
       const c = values[i]! >= 0 ? POS : NEG;
       col[base] = ((c >> 16) & 255) / 255; col[base + 1] = ((c >> 8) & 255) / 255; col[base + 2] = (c & 255) / 255;
       col[base + 3] = col[base]; col[base + 4] = col[base + 1]; col[base + 5] = col[base + 2];
-      void t;
     }
     this.posAttr.needsUpdate = true;
     this.colAttr.needsUpdate = true;
+  }
+
+  /** Bentang berubah → cukup update; posisi dihitung ulang per frame. */
+  setSpan(span: number): void {
+    this.span = span;
   }
 
   dispose(): void {
