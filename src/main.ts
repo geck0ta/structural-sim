@@ -229,6 +229,43 @@ async function main(): Promise<void> {
   document.body.append(themeBtn);
   document.body.append(sidebar);
 
+  // Tombol reset view (floating, sebelah tema) — kamera balik fit default.
+  const resetBtn = document.createElement('button');
+  resetBtn.type = 'button';
+  resetBtn.className = 'ghost-btn theme-float';
+  resetBtn.style.right = 'calc(324px + 42px)';
+  resetBtn.setAttribute('aria-label', 'Reset tampilan kamera (R)');
+  resetBtn.title = 'Reset tampilan (R)';
+  resetBtn.append(icon('scan', 18));
+  const resetView = (): void => sm.fitTo(params.span, view.beamCenterY);
+  resetBtn.addEventListener('click', resetView);
+  document.body.append(resetBtn);
+
+  // Keyboard shortcut: R = reset view, Space = replay (bukan saat fokus input).
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+    if (e.key === 'r' || e.key === 'R') resetView();
+    else if (e.code === 'Space') {
+      e.preventDefault();
+      replay();
+    }
+  });
+
+  // Orbit hint — fade setelah interaksi pointer pertama di kanvas.
+  const hint = document.createElement('div');
+  hint.className = 'orbit-hint';
+  hint.textContent = 'Drag untuk memutar · scroll untuk zoom';
+  document.body.append(hint);
+  const killHint = (): void => {
+    hint.classList.add('hide');
+    document.getElementById('canvas3d')?.removeEventListener('pointerdown', killHint);
+    window.removeEventListener('keydown', killHint, true);
+    setTimeout(() => hint.remove(), 600);
+  };
+  document.getElementById('canvas3d')?.addEventListener('pointerdown', killHint);
+  window.addEventListener('keydown', killHint, true);
+
   // ===== Solve + wire =====
   let solveScheduled = false;
   const scheduleSolve = (): void => {

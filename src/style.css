@@ -184,6 +184,30 @@ body::after {
   }
 }
 
+/* orbit hint — teks kecil tengah bawah viewport, fade saat user interaksi pertama */
+.orbit-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 178px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  opacity: 0.85;
+  transition: opacity 500ms ease;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.orbit-hint.hide {
+  opacity: 0;
+}
+
 .module-btn:focus-visible,
 button:focus-visible,
 [role='slider']:focus-visible {
