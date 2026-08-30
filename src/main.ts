@@ -103,10 +103,12 @@ async function main(): Promise<void> {
 
   // ===== Diagrams =====
   const charts = {
-    shear: new MiniChart('Gaya geser V(x)', CHART_COLORS.shear, 260, 64, fmtForce),
-    moment: new MiniChart('Momen M(x)', CHART_COLORS.moment, 260, 64, fmtMoment),
-    deflect: new MiniChart('Defleksi y(x)', CHART_COLORS.deflect, 260, 64, fmtLength),
+    shear: new MiniChart('Gaya geser V(x)', 'kN', CHART_COLORS.shear, 260, 64, fmtForce),
+    moment: new MiniChart('Momen M(x)', 'kN·m', CHART_COLORS.moment, 260, 64, fmtMoment),
+    deflect: new MiniChart('Defleksi y(x)', 'mm', CHART_COLORS.deflect, 260, 64, fmtLength),
   };
+  // Hover chart mana pun → crosshair 3D di x sama (sinkron 2D→3D).
+  for (const c of Object.values(charts)) c.onHover = (x) => view.setCrosshair(x);
 
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
@@ -120,14 +122,11 @@ async function main(): Promise<void> {
   const panelHost = document.createElement('aside');
   panelHost.id = 'panel';
   panelHost.className = 'glass';
-  const panel = buildBeamPanel(
-    params,
-    () => scheduleSolve(),
-    () => {
-      anim.setFactor(0, 1); // replay ramp beban 0→penuh
-      scheduleSolve();
-    },
-  );
+  const replay = (): void => {
+    anim.setFactor(0, 1); // replay ramp beban 0→penuh
+    scheduleSolve();
+  };
+  const panel = buildBeamPanel(params, () => scheduleSolve(), replay);
   panelHost.append(panel.el);
   document.body.append(panelHost);
 
@@ -318,6 +317,7 @@ async function main(): Promise<void> {
       view.setBeam(section(), params.span, params.support);
     }
     const moving = anim.step(dt);
+    panel.setReplayState(moving);
     if (!moving && !visualDirty) return; // diam total → skip rebuild chart/ribbon (anti-lag, tak ubah visual)
     visualDirty = true;
     view.updateDeform(anim, moving || solveScheduled, {

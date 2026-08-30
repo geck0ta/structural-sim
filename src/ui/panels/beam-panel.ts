@@ -27,6 +27,7 @@ export interface BeamPanel {
   readonly showResults: (sol: BeamSolution) => void;
   readonly setMode: (m: 'explore' | 'explain') => void;
   readonly replayBtn: HTMLButtonElement;
+  readonly setReplayState: (playing: boolean) => void;
   readonly mathRow: HTMLDivElement;
 }
 
@@ -211,20 +212,31 @@ export function buildBeamPanel(
   );
   root.append(secLabel, secPicker.el);
 
-  // Tombol replay: animasi beban 0→penuh dimainkan ulang (pengganti mode Simulation).
+  // Tombol replay: main/pause morph (rotate-ccw ↔ pause) saat animasi jalan.
   const replayBtn = document.createElement('button');
   replayBtn.type = 'button';
   replayBtn.className = 'replay-btn';
-  replayBtn.append(icon('rotate-ccw', 15));
+  const rIcon = icon('rotate-ccw', 15);
   const rl = document.createElement('span');
   rl.textContent = 'Putar ulang animasi';
-  replayBtn.append(rl);
+  replayBtn.append(rIcon, rl);
   replayBtn.addEventListener('click', () => onReplay());
+  /** Morph ikon+label replay↔pause (dipanggil main.ts saat animasi mulai/berhenti). */
+  const setReplayState = (playing: boolean): void => {
+    rIcon.replaceWith(icon(playing ? 'pause' : 'rotate-ccw', 15));
+    rl.textContent = playing ? 'Jeda animasi' : 'Putar ulang animasi';
+  };
   root.append(replayBtn);
 
-  // Blok hasil
+  // Blok hasil (skeleton shimmer sampai solve pertama selesai)
   const results = document.createElement('div');
   results.className = 'result-block';
+  for (let i = 0; i < 3; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'skeleton';
+    sk.style.width = `${72 - i * 14}%`;
+    results.append(sk);
+  }
   root.append(results);
 
   // Blok Explain (hidden default)
@@ -301,7 +313,7 @@ export function buildBeamPanel(
     modeSeg.select(m);
   };
 
-  return { el: root, getParams: () => params, showResults, setMode, replayBtn, mathRow };
+  return { el: root, getParams: () => params, showResults, setMode, replayBtn, setReplayState, mathRow };
 }
 
 function step(formula: string, detail: string): HTMLDivElement {

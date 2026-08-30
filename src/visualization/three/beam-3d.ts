@@ -103,6 +103,8 @@ export class BeamView {
   private readonly reactB: ForceArrow;
   private readonly udlArrows: ForceArrow[] = [];
   private readonly supports = new THREE.Group();
+  private readonly crosshair!: THREE.Line;
+  /** Marker hover sinkron dari chart (garis vertikal + titik di beam). */
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
 
@@ -119,6 +121,35 @@ export class BeamView {
       this.group.add(a.group);
     }
     this.scene.add(this.group);
+
+    // Crosshair hover chart → marker vertikal di scene (sinkron 3D↔2D, satu data).
+    const cGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+    ]);
+    this.crosshair = new THREE.Line(
+      cGeo,
+      new THREE.LineDashedMaterial({ color: 0x0a84ff, dashSize: 0.06, gapSize: 0.05, transparent: true, opacity: 0.75 }),
+    );
+    this.crosshair.visible = false;
+    this.crosshair.computeLineDistances();
+    this.scene.add(this.crosshair);
+  }
+
+  /** Crosshair 3D: x meter → garis vertikal accent di posisi hover chart. null = sembunyi. */
+  setCrosshair(xM: number | null): void {
+    if (xM === null || xM < 0 || xM > this.span) {
+      this.crosshair.visible = false;
+      return;
+    }
+    const p = this.crosshair.geometry.attributes.position as THREE.BufferAttribute;
+    const top = this.centerY + 0.9;
+    p.setXYZ(0, xM, 0.005, 0);
+    p.setXYZ(1, xM, top, 0);
+    p.needsUpdate = true;
+    this.crosshair.geometry.computeBoundingSphere();
+    this.crosshair.computeLineDistances();
+    this.crosshair.visible = true;
   }
 
   get beamCenterY(): number {

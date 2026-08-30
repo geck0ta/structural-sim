@@ -27,11 +27,13 @@ export class MiniChart {
   private readonly axisEl: SVGTextElement;
   private data: readonly ChartData[] = [];
   private hoverI = -1;
+  /** Callback hover: x meter (atau null saat pointerleave) — untuk sinkron 3D. */
+  onHover: ((x: number | null) => void) | null = null;
   private readonly fmtV: (v: number) => string;
   private readonly w: number;
   private readonly h: number;
 
-  constructor(label: string, color: string, w: number, h: number, fmtV: (v: number) => string) {
+  constructor(label: string, unit: string, color: string, w: number, h: number, fmtV: (v: number) => string) {
     this.fmtV = fmtV;
     this.w = w;
     this.h = h;
@@ -106,11 +108,17 @@ export class MiniChart {
     this.dot.style.display = 'none';
 
     this.labelEl = document.createElementNS(NS, 'text');
-    this.labelEl.textContent = label;
     this.labelEl.setAttribute('x', '4');
     this.labelEl.setAttribute('y', '11');
-    this.labelEl.style.fill = 'var(--muted)';
-    this.labelEl.setAttribute('font-size', '10');
+    this.labelEl.style.fill = 'var(--fg)';
+    this.labelEl.setAttribute('font-size', '11');
+    this.labelEl.setAttribute('font-weight', '600');
+    const unitEl = document.createElementNS(NS, 'tspan');
+    unitEl.textContent = ` ${unit}`;
+    unitEl.style.fill = 'var(--muted)';
+    unitEl.setAttribute('font-size', '9.5');
+    unitEl.setAttribute('font-weight', '400');
+    this.labelEl.append(unitEl);
 
     // Sumbu bawah: '0' kiri; kanan = panjang bentang, jadi readout saat hover.
     this.x0El = document.createElementNS(NS, 'text');
@@ -148,6 +156,8 @@ export class MiniChart {
     const on = i >= 0 && this.data.length > 0;
     this.tip.style.display = on ? 'block' : 'none';
     this.dot.style.display = on ? 'block' : 'none';
+    // Callback UI lain (marker 3D sinkron) — x dalam meter, null = lepas.
+    this.onHover?.(on ? this.data[i]!.x : null);
     this.render();
   }
 

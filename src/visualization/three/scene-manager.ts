@@ -235,6 +235,9 @@ export class SceneManager {
     this.orbit.radius.target = THREE.MathUtils.clamp(radius * 2.2, 3, 60);
     this.orbit.targetY.target = targetY;
     this.orbit.targetX.target = 0;
+    // Reset view penuh: theta/phi kembali ke awal (spring, halus).
+    this.orbit.theta.target = 0;
+    this.orbit.phi.target = 1.1;
   }
 
   private bindVisibility(): void {
