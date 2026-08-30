@@ -18,6 +18,7 @@ export interface BeamParams {
   sectionId: string;
   support: 'ss' | 'cantilever';
   loadType: 'point' | 'udl'; // titik atau merata
+  deformScale: number; // faktor pengali skala defleksi (default 1 = auto 10% bentang)
 }
 
 export interface BeamPanel {
@@ -116,6 +117,9 @@ export function buildBeamPanel(
   root.append(loadRow.row);
   posSlider = sliderRow('Posisi beban a', 0.5, params.span, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
   root.append(posSlider.row);
+  // §7: skala deformasi ×N — user override terhadap auto-scale (default ×1.0).
+  const deformRow = sliderRow('Skala deformasi', 1, 5, 0.5, () => params.deformScale, (v) => { params.deformScale = v; }, (v) => `×${v.toFixed(1)}`);
+  root.append(deformRow.row);
 
   // Sinkron seluruh kontrol UI ke state params (dipakai preset chip & restore).
   const syncAll = (): void => {
@@ -225,8 +229,18 @@ export function buildBeamPanel(
   eh.textContent = 'Langkah perhitungan';
   const explainSteps = document.createElement('div');
   explainSteps.className = 'explain-steps';
-  explainBlock.append(eh, explainSteps);
+  // §11: asumsi ditampilkan di Explain mode
+  const assum = document.createElement('p');
+  assum.className = 'caption';
+  assum.textContent = 'Asumsi: linear elastis · small displacement (tanpa P-Δ) · Euler-Bernoulli (tanpa shear deformation) · plane sections remain plane · sambungan rigid.';
+  explainBlock.append(eh, explainSteps, assum);
   root.append(explainBlock);
+
+  // §11: disclaimer permanen
+  const disclaimer = document.createElement('p');
+  disclaimer.className = 'disclaimer';
+  disclaimer.textContent = 'Simulasi edukasi — bukan pengganti desain & verifikasi teknik sipil profesional.';
+  root.append(disclaimer);
 
   const row = (label: string, value: string, cls = ''): HTMLDivElement => {
     const d = document.createElement('div');
@@ -262,6 +276,7 @@ export function buildBeamPanel(
       row('M maks', fmtMoment(sol.maxMoment.value)),
       row('V maks', fmtForce(sol.maxShear.value)),
       row('Safety factor', sol.safetyFactor === Infinity ? '∞' : `${sol.safetyFactor.toPrecision(3)}`, sol.safetyFactor < 1.5 ? 'warn' : ''),
+      ...(sol.safetyFactor === Infinity ? [] : [row('Utilisasi D/C', `${(1 / sol.safetyFactor).toPrecision(3)}${1 / sol.safetyFactor > 1 ? ' — LEBIH' : ''}`, 1 / sol.safetyFactor > 1 ? 'warn' : 1 / sol.safetyFactor > 0.5 ? 'warn' : '')]),
     );
 
     const sec = SECTION_PRESETS.find((s) => s.id === params.sectionId)!;

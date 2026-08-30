@@ -53,6 +53,7 @@ async function main(): Promise<void> {
     sectionId: 'ipe300',
     support: 'cantilever',
     loadType: 'point',
+    deformScale: 1,
   };
   // Restore param tersimpan (localStorage) — refresh tak reset pengaturan.
   try {
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
       if (typeof saved.span === 'number') params.span = saved.span;
       if (typeof saved.loadP === 'number') params.loadP = saved.loadP;
       if (typeof saved.loadAt === 'number') params.loadAt = Math.min(saved.loadAt, params.span);
+      if (typeof saved.deformScale === 'number' && saved.deformScale >= 1 && saved.deformScale <= 5) params.deformScale = saved.deformScale;
       if (saved.materialId && MATERIALS[saved.materialId]) params.materialId = saved.materialId;
       if (saved.sectionId && SECTION_PRESETS.some((s) => s.id === saved.sectionId)) params.sectionId = saved.sectionId;
       if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
@@ -272,7 +274,7 @@ async function main(): Promise<void> {
     }
     const moving = anim.step(dt);
     view.updateDeform(anim, moving || solveScheduled, {
-      scale: deformScale(),
+      scale: deformScale() * params.deformScale,
       loadAt: params.loadAt,
       loadP: params.loadP,
       loadType: params.loadType ?? 'point',
@@ -291,7 +293,7 @@ async function main(): Promise<void> {
     };
     charts.shear.update(chartData(anim.V));
     charts.moment.update(chartData(anim.M));
-    charts.deflect.update(chartData(anim.y, deformScale()));
+    charts.deflect.update(chartData(anim.y, deformScale() * params.deformScale));
   });
 
   // ===== Deform scale: dijangkar ke respons beban referensi 100 kN pada bentang

@@ -669,6 +669,19 @@ select {
   display: none;
 }
 
+/* a11y: ring fokus jelas (§14) */
+:is(.module-btn, .picker-btn, .picker-opt, .chip, .ghost-btn, .ios-slider):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.disclaimer {
+  margin: 14px 0 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 @media (max-width: 1200px) {
   #sidebar {
     width: 52px;

@@ -29,6 +29,10 @@ export class SceneManager {
   private fillLight!: THREE.DirectionalLight;
   private readonly ambient = new THREE.AmbientLight(0xffffff, 0.35);
   private skyDome!: THREE.Mesh;
+  private sun!: THREE.Group;
+  private moon!: THREE.Group;
+  private stars!: THREE.Group;
+  private clouds!: THREE.Group;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -75,6 +79,7 @@ export class SceneManager {
 
   /** Tema terang: latar/grid/fog lebih terang (3D match tema UI). */
   setTheme(light: boolean): void {
+    const dome = this.skyDome.material as THREE.ShaderMaterial;
     if (light) {
       this.scene.background = new THREE.Color(0xdfe3ea);
       this.scene.fog = new THREE.Fog(0xdfe3ea, 40, 130);
@@ -83,6 +88,9 @@ export class SceneManager {
       this.ambient.intensity = 0.55;
       this.keyLight.intensity = 2.8;
       this.fillLight.intensity = 0.8;
+      (dome.uniforms.zenith.value as THREE.Color).set(0x2f6fd0);
+      (dome.uniforms.horizon.value as THREE.Color).set(0xe8f1f8);
+      (dome.uniforms.below.value as THREE.Color).set(0xdfe3ea);
     } else {
       this.scene.background = new THREE.Color(0x0d0f12);
       this.scene.fog = new THREE.Fog(0x0d0f12, 40, 130);
@@ -91,8 +99,14 @@ export class SceneManager {
       this.ambient.intensity = 0.35;
       this.keyLight.intensity = 2.2;
       this.fillLight.intensity = 0.6;
+      (dome.uniforms.zenith.value as THREE.Color).set(0x05070d);
+      (dome.uniforms.horizon.value as THREE.Color).set(0x1a2436);
+      (dome.uniforms.below.value as THREE.Color).set(0x0d0f12);
     }
-    this.setSky(!light);
+    this.sun.visible = light;
+    this.clouds.visible = light;
+    this.moon.visible = !light;
+    this.stars.visible = !light;
   }
 
   private setupGround(): void {
@@ -114,27 +128,72 @@ export class SceneManager {
     this.grid = grid;
   }
 
-  /** Langit: dome gradien (prosedural, canvas). Tema terang = siang cerah, gelap = malam berbintang. */
+  /** Langit 3D: dome shader gradien + matahari/bulan sphere + glow + bintang Points + awan sprite. */
   private setupSky(): void {
-    this.skyDome = new THREE.Mesh(
-      new THREE.SphereGeometry(150, 24, 16),
-      new THREE.MeshBasicMaterial({
-        map: skyTexture(false),
-        side: THREE.BackSide,
-        depthWrite: false,
-        fog: false,
-      }),
-    );
+    // Dome: gradien zenith→horizon via shader (krisp, tanpa banding tekstur 2D).
+    const domeMat = new THREE.ShaderMaterial({
+      uniforms: {
+        zenith: { value: new THREE.Color(0x2f6fd0) },
+        horizon: { value: new THREE.Color(0xe8f1f8) },
+        below: { value: new THREE.Color(0xdfe3ea) },
+      },
+      vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform vec3 zenith; uniform vec3 horizon; uniform vec3 below;
+        varying vec3 vDir;
+        void main(){
+          float t = pow(max(vDir.y, 0.0), 0.45);
+          vec3 col = mix(horizon, zenith, t);
+          if (vDir.y < 0.0) col = below;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+    });
+    this.skyDome = new THREE.Mesh(new THREE.SphereGeometry(140, 32, 16), domeMat);
     this.skyDome.renderOrder = -10;
     this.scene.add(this.skyDome);
-  }
 
-  /** Ganti tekstur langit saat tema berganti. */
-  setSky(night: boolean): void {
-    const mat = this.skyDome.material as THREE.MeshBasicMaterial;
-    mat.map?.dispose();
-    mat.map = skyTexture(night);
-    mat.needsUpdate = true;
+    // Matahari (siang): sphere kecil + glow sprite — terasa 3D, bukan gambar blur.
+    this.sun = new THREE.Group();
+    const sunBall = new THREE.Mesh(
+      new THREE.SphereGeometry(3.5, 24, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfff6dc, fog: false }),
+    );
+    const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('sun'), transparent: true, depthWrite: false, fog: false }));
+    sunGlow.scale.set(46, 46, 1);
+    this.sun.add(sunBall, sunGlow);
+    this.sun.position.set(0.55, 0.5, -0.55).normalize().multiplyScalar(128);
+    this.scene.add(this.sun);
+
+    // Bulan (malam): sphere + glow bluish.
+    this.moon = new THREE.Group();
+    const moonBall = new THREE.Mesh(
+      new THREE.SphereGeometry(2.8, 24, 16),
+      new THREE.MeshBasicMaterial({ color: 0xe6ecf8, fog: false }),
+    );
+    const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('moon'), transparent: true, depthWrite: false, fog: false }));
+    moonGlow.scale.set(30, 30, 1);
+    this.moon.add(moonBall, moonGlow);
+    this.moon.position.set(-0.5, 0.62, 0.42).normalize().multiplyScalar(128);
+    this.scene.add(this.moon);
+
+    // Bintang: dua layer Points (kecil padat + sedikit terang).
+    this.stars = new THREE.Group();
+    this.stars.add(makeStars(420, 1.6, 0xffffff), makeStars(40, 2.6, 0xcfe0ff));
+    this.scene.add(this.stars);
+
+    // Awan (siang): 4 sprite lembut, drift lambat.
+    this.clouds = new THREE.Group();
+    const cloudPos = [[-55, 44, -70], [20, 52, -80], [75, 40, -55], [-80, 34, 30]];
+    for (const [x, y, z] of cloudPos) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('cloud'), transparent: true, opacity: 0.8, depthWrite: false, fog: false }));
+      s.scale.set(40, 13, 1);
+      s.position.set(x, y, z);
+      this.clouds.add(s);
+    }
+    this.scene.add(this.clouds);
   }
 
   private bindPointer(canvas: HTMLCanvasElement): void {
@@ -217,6 +276,13 @@ export class SceneManager {
 
   private stepOrbit(dt: number): void {
     for (const s of Object.values(this.orbit)) s.step(dt);
+    // Awan drift lambat — wrap di batas dome.
+    if (this.clouds.visible) {
+      for (const c of this.clouds.children) {
+        c.position.x += dt * 0.6;
+        if (c.position.x > 110) c.position.x = -110;
+      }
+    }
   }
 
   private updateCamera(): void {
@@ -253,108 +319,62 @@ export class SceneManager {
   }
 }
 
-/** Cache tekstur langit prosedural — dua varian (siang/malam), dibuat sekali. */
-const skyCache = new Map<string, THREE.CanvasTexture>();
+/** Cache tekstur glow (matahari/bulan/awan) — dibuat sekali per varian. */
+const glowCache = new Map<string, THREE.CanvasTexture>();
 
-/**
- * Tekstur langit procedural: gradien vertikal + glow benda langit + awan (siang) / bintang (malam).
- * 1024×1024, wrap horizontal. Dipakai dome BackSide.
- */
-function skyTexture(night: boolean): THREE.CanvasTexture {
-  const key = night ? 'night' : 'day';
-  const hit = skyCache.get(key);
+function glowTex(kind: 'sun' | 'moon' | 'cloud'): THREE.CanvasTexture {
+  const hit = glowCache.get(kind);
   if (hit) return hit;
-  const S = 1024;
   const c = document.createElement('canvas');
-  c.width = S;
-  c.height = S;
+  c.width = 256;
+  c.height = kind === 'cloud' ? 128 : 256;
   const ctx = c.getContext('2d')!;
-  const horizonY = S * 0.62; // horizon di ~62% tinggi (dome: bawah = tanah blur)
-  // Gradien vertikal langit
-  const g = ctx.createLinearGradient(0, 0, 0, S);
-  if (night) {
-    g.addColorStop(0, '#05070d');
-    g.addColorStop(0.45, '#0b1120');
-    g.addColorStop(0.62, '#101a2e');
-    g.addColorStop(0.72, '#1a2436');
-    g.addColorStop(1, '#0d0f12');
-  } else {
-    g.addColorStop(0, '#2f6fd0');
-    g.addColorStop(0.4, '#5b9be5');
-    g.addColorStop(0.62, '#a8cff0');
-    g.addColorStop(0.72, '#e8f1f8');
-    g.addColorStop(1, '#dfe3ea');
-  }
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, S, S);
-
-  if (night) {
-    // Bintang: titik putih acak, padat ke atas, sebagian berkelip (statis di tekstur)
-    for (let i = 0; i < 340; i++) {
-      const x = Math.random() * S;
-      const y = Math.random() * horizonY * 0.92;
-      const r = Math.random();
-      if (r > 0.97) continue;
-      const size = r > 0.9 ? 1.6 : r > 0.7 ? 1.1 : 0.7;
-      ctx.globalAlpha = 0.35 + Math.random() * 0.65;
-      ctx.fillStyle = Math.random() > 0.85 ? '#cfe0ff' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
+  if (kind === 'cloud') {
+    for (const [x, y, r] of [[70, 70, 46], [110, 56, 52], [150, 68, 44], [190, 74, 36], [40, 80, 30]] as const) {
+      const g = ctx.createRadialGradient(x, y, 2, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.85)');
+      g.addColorStop(0.7, 'rgba(255,255,255,0.35)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
-    ctx.globalAlpha = 1;
-    // Bulan + glow
-    const mx = S * 0.74;
-    const my = S * 0.16;
-    const glow = ctx.createRadialGradient(mx, my, 4, mx, my, 110);
-    glow.addColorStop(0, 'rgba(230,238,255,0.5)');
-    glow.addColorStop(0.4, 'rgba(200,215,245,0.14)');
-    glow.addColorStop(1, 'rgba(200,215,245,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(mx - 120, my - 120, 240, 240);
-    ctx.fillStyle = '#e8edf7';
-    ctx.beginPath();
-    ctx.arc(mx, my, 26, 0, Math.PI * 2);
-    ctx.fill();
-    // kawah samar
-    ctx.fillStyle = 'rgba(190,200,220,0.5)';
-    for (const [dx, dy, r] of [[-8, -5, 5], [7, 4, 4], [2, 9, 3], [-5, 8, 2.5]] as const) {
-      ctx.beginPath();
-      ctx.arc(mx + dx, my + dy, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  } else if (kind === 'sun') {
+    const g = ctx.createRadialGradient(128, 128, 6, 128, 128, 124);
+    g.addColorStop(0, 'rgba(255,250,225,0.95)');
+    g.addColorStop(0.22, 'rgba(255,242,200,0.42)');
+    g.addColorStop(0.55, 'rgba(255,238,190,0.12)');
+    g.addColorStop(1, 'rgba(255,238,190,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
   } else {
-    // Matahari glow lembut
-    const sx = S * 0.7;
-    const sy = S * 0.18;
-    const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 170);
-    glow.addColorStop(0, 'rgba(255,252,235,0.95)');
-    glow.addColorStop(0.25, 'rgba(255,246,214,0.35)');
-    glow.addColorStop(1, 'rgba(255,246,214,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(sx - 180, sy - 180, 360, 360);
-    // Awan kumulus lembut: elips putih bertumpuk, samar
-    const cloud = (cx: number, cy: number, w: number, alpha: number): void => {
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-      const blobs = 7;
-      for (let i = 0; i < blobs; i++) {
-        const bx = cx + (i - blobs / 2) * (w / blobs) + (Math.random() - 0.5) * w * 0.1;
-        const by = cy + Math.sin(i * 1.3 + cx) * w * 0.05;
-        const br = w * (0.16 + Math.random() * 0.12);
-        ctx.beginPath();
-        ctx.ellipse(bx, by, br * 1.5, br, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-    cloud(S * 0.22, S * 0.3, 260, 0.75);
-    cloud(S * 0.52, S * 0.42, 330, 0.55);
-    cloud(S * 0.86, S * 0.35, 230, 0.65);
-    cloud(S * 0.1, S * 0.5, 300, 0.4);
-    cloud(S * 0.68, S * 0.54, 280, 0.35);
+    const g = ctx.createRadialGradient(128, 128, 6, 128, 128, 120);
+    g.addColorStop(0, 'rgba(215,228,255,0.55)');
+    g.addColorStop(0.35, 'rgba(200,216,250,0.18)');
+    g.addColorStop(1, 'rgba(200,216,250,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
   }
-
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  skyCache.set(key, tex);
+  glowCache.set(kind, tex);
   return tex;
+}
+
+/** Bintang: THREE.Points di hemisphere atas — tajam (bukan tekstur blur). */
+function makeStars(count: number, size: number, color: number): THREE.Points {
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const az = Math.random() * Math.PI * 2;
+    const el = Math.asin(Math.random() * 0.94 + 0.06); // elevasi > 0
+    const r = 132;
+    pos[i * 3] = r * Math.cos(el) * Math.cos(az);
+    pos[i * 3 + 1] = r * Math.sin(el);
+    pos[i * 3 + 2] = r * Math.cos(el) * Math.sin(az);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(
+    g,
+    new THREE.PointsMaterial({ size, sizeAttenuation: false, color, transparent: true, opacity: 0.9, fog: false, depthWrite: false }),
+  );
 }

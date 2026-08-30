@@ -288,6 +288,10 @@ export class BeamView {
     const P = this.profile.length;
     const show = f > 0.02; // panah menyala setelah beban mulai diterapkan
     const dx = this.span / (this.rings - 1);
+    // Pulse halus beban (§7): skala berdenyut pelan — reaksi tenang (statika).
+    const pulse = 1 + 0.05 * Math.sin(performance.now() / 1000 * 2.4);
+    this.loadArrow.group.scale.setScalar(pulse);
+    for (const a of this.udlArrows) a.group.scale.setScalar(pulse);
 
     // Y permukaan terdeformasi pada x (interpolasi sampel anim).
     const yAt = (x: number): number => {
