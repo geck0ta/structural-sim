@@ -49,6 +49,19 @@ async function main(): Promise<void> {
     support: 'cantilever',
     loadType: 'point',
   };
+  // Restore param tersimpan (localStorage) — refresh tak reset pengaturan.
+  try {
+    const saved = JSON.parse(localStorage.getItem('sl-params') ?? 'null') as Partial<BeamParams> | null;
+    if (saved) {
+      if (typeof saved.span === 'number') params.span = saved.span;
+      if (typeof saved.loadP === 'number') params.loadP = saved.loadP;
+      if (typeof saved.loadAt === 'number') params.loadAt = Math.min(saved.loadAt, params.span);
+      if (saved.materialId && MATERIALS[saved.materialId]) params.materialId = saved.materialId;
+      if (saved.sectionId && SECTION_PRESETS.some((s) => s.id === saved.sectionId)) params.sectionId = saved.sectionId;
+      if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
+      if (saved.loadType === 'point' || saved.loadType === 'udl') params.loadType = saved.loadType;
+    }
+  } catch { /* data korup → default */ }
 
   const section = (): typeof SECTION_PRESETS[number] => SECTION_PRESETS.find((s) => s.id === params.sectionId) ?? SECTION_PRESETS[0]!;
   const material = (): (typeof MATERIALS)[string] => MATERIALS[params.materialId] ?? MATERIALS.steelS355;
@@ -113,7 +126,9 @@ async function main(): Promise<void> {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'module-btn';
-    btn.disabled = !m.ready;
+    if (!m.ready) {
+      btn.setAttribute('aria-disabled', 'true'); // tetap klikable → toast, bukan dead zone
+    }
     btn.append(icon(m.icon, 18));
     const bs = document.createElement('span');
     bs.textContent = m.label;
@@ -141,7 +156,14 @@ async function main(): Promise<void> {
     document.documentElement.dataset.theme = light ? 'light' : 'dark';
     themeLabel.textContent = light ? 'Tema gelap' : 'Tema terang';
     sm.setTheme(light);
+    try {
+      localStorage.setItem('sl-theme', light ? 'light' : 'dark');
+    } catch { /* abaikan */ }
   };
+  // Restore tema tersimpan
+  try {
+    applyTheme(localStorage.getItem('sl-theme') === 'light');
+  } catch { /* default dark */ }
   themeBtn.addEventListener('click', () => {
     applyTheme(document.documentElement.dataset.theme !== 'light');
   });
@@ -195,6 +217,7 @@ async function main(): Promise<void> {
     view.matId = params.materialId;
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
+    saveParams();
     // Kamera hanya re-fit saat geometri berubah — bukan tiap geser slider beban.
     if (geoChanged) sm.fitTo(params.span, view.beamCenterY);
     currentSol = sol;
@@ -280,6 +303,31 @@ async function main(): Promise<void> {
 
   window.addEventListener('resize', () => sm.resize());
   sm.resize();
+
+  // Simpan param + tema (§localStorage — refresh tak reset); dipanggil dari applySolution/applyTheme.
+  const saveParams = (): void => {
+    try {
+      localStorage.setItem('sl-params', JSON.stringify(params));
+    } catch { /* storage penuh/blocked → abaikan */ }
+  };
+
+  // Toast kecil: modul belum aktif (backlog #14)
+  const toast = document.createElement('div');
+  toast.id = 'toast';
+  toast.className = 'glass';
+  document.body.append(toast);
+  let toastTimer: number | undefined;
+  const showToast = (msg: string): void => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1800);
+  };
+  nav.querySelectorAll<HTMLButtonElement>(".module-btn[aria-disabled='true']").forEach((b) => {
+    const label = b.querySelector('span')?.textContent ?? 'Modul';
+    b.addEventListener('click', () => showToast(`${label} aktif di fase berikutnya.`));
+  });
+
   applySolution();
 }
 

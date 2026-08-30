@@ -12,6 +12,7 @@ function canvasTexture(size: number, draw: (ctx: CanvasRenderingContext2D, s: nu
   draw(ctx, size);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace; // warna kanvas = sRGB, bukan data linear
   tex.anisotropy = 4;
   return tex;
 }

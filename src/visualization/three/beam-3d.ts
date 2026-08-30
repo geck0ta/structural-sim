@@ -163,6 +163,19 @@ export class BeamView {
     this.posAttr = new THREE.BufferAttribute(positions, 3);
     this.posAttr.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('position', this.posAttr);
+    // UV: s = keliling profil, t = sepanjang bentang (repeat tiap 2 m) — serat kayu
+    // memanjang, tak ter-stretch walau bentang berubah. Diisi sekali di sini (bukan
+    // per frame — frame statis tak pernah menulis UV).
+    const uvs = new Float32Array(vertCount * 2);
+    const uvAttr = new THREE.BufferAttribute(uvs, 2);
+    for (let i = 0; i < this.rings; i++) {
+      for (let k = 0; k < P; k++) {
+        uvAttr.setXY(i * P + k, k / (P - 1), (i / (this.rings - 1)) * (this.span / 2));
+      }
+    }
+    uvAttr.setXY(this.rings * P, 0.5, 0);
+    uvAttr.setXY(this.rings * P + 1, 0.5, this.span / 2);
+    geo.setAttribute('uv', uvAttr);
     geo.setIndex(index);
     geo.computeVertexNormals();
     this.mesh = new THREE.Mesh(geo, this.beamMat);

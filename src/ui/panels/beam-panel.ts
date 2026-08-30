@@ -4,6 +4,7 @@ import { fmtForce, fmtMoment, fmtStress, fmtLength } from '../../core/units';
 import type { BeamSolution } from '../../structural/beam/beam-solver';
 import { IOSSlider } from '../glass/slider';
 import { SegmentedControl } from '../glass/segmented';
+import { icon } from '../glass/icons';
 
 // §17 — panel Lab Balok. Panel DUMB: tak berhitung, hanya menampilkan.
 // State dimiliki main.ts; panel emit perubahan lewat callback onChange.
@@ -39,6 +40,29 @@ export function buildBeamPanel(
   cap.className = 'caption';
   cap.textContent = 'Geser slider — 3D, diagram, dan angka berubah bersamaan.';
   root.append(h, cap);
+
+  // Preset kasus umum — one-tap demo (§17 onboarding)
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  // Deferred sync: chip dibuat sebelum kontrol ada; callback jalan saat diklik.
+  const onChipClick: Array<() => void> = [];
+  const chip = (label: string, apply: () => void): void => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      apply();
+      if (params.support === 'cantilever') params.loadAt = params.span;
+      for (const f of onChipClick) f();
+      onChange();
+    });
+    chips.append(b);
+  };
+  chip('Uji kantilever', () => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; });
+  chip('Jembatan SS', () => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; });
+  chip('Beban merata', () => { params.support = 'ss'; params.span = 8; params.loadP = 40e3; params.loadType = 'udl'; });
+  root.append(chips);
 
   const modeSeg = new SegmentedControl(
     [
@@ -92,11 +116,29 @@ export function buildBeamPanel(
   posSlider = sliderRow('Posisi beban a', 0.5, params.span, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
   root.append(posSlider.row);
 
+  // Sinkron seluruh kontrol UI ke state params (dipakai preset chip & restore).
+  const syncAll = (): void => {
+    spanRow.slider.set(params.span, false);
+    loadRow.slider.set(params.loadP / 1000, false);
+    if (posSlider) posSlider.slider.setRange(0.5, params.span, params.loadAt);
+    spanRow.row.querySelector('.val')!.textContent = fmtLength(params.span);
+    loadRow.row.querySelector('.val')!.textContent = fmtForce(params.loadP);
+    supSeg.select(params.support);
+    loadTypeSeg.select(params.loadType ?? 'point');
+    applyLoadType(params.loadType ?? 'point');
+  };
+  onChipClick.push(syncAll);
+
   // Tipe beban: titik / merata — sembunyikan "posisi beban" saat merata
   const loadTypeLabel = document.createElement('div');
   loadTypeLabel.className = 'param-label';
   loadTypeLabel.textContent = 'Tipe beban';
   const loadTypeName = loadRow.row.querySelector('label > span:first-child');
+  const applyLoadType = (v: 'point' | 'udl'): void => {
+    params.loadType = v;
+    posSlider.row.style.display = v === 'point' ? '' : 'none';
+    if (loadTypeName) loadTypeName.textContent = v === 'point' ? 'Beban P' : 'Beban merata w';
+  };
   const loadTypeSeg = new SegmentedControl(
     [
       { value: 'point', label: 'Titik' },
@@ -104,16 +146,11 @@ export function buildBeamPanel(
     ],
     params.loadType ?? 'point',
     (v) => {
-      params.loadType = v;
-      posSlider.row.style.display = v === 'point' ? '' : 'none';
-      if (loadTypeName) loadTypeName.textContent = v === 'point' ? 'Beban P' : 'Beban merata w';
+      applyLoadType(v);
       onChange();
     },
   );
-  if ((params.loadType ?? 'point') === 'udl') {
-    posSlider.row.style.display = 'none';
-    if (loadTypeName) loadTypeName.textContent = 'Beban merata w';
-  }
+  if ((params.loadType ?? 'point') === 'udl') applyLoadType('udl');
   root.append(loadTypeLabel, loadTypeSeg.el);
 
   // Tumpuan
@@ -174,7 +211,10 @@ export function buildBeamPanel(
   const replayBtn = document.createElement('button');
   replayBtn.type = 'button';
   replayBtn.className = 'replay-btn';
-  replayBtn.textContent = 'Putar ulang animasi';
+  replayBtn.append(icon('rotate-ccw', 15));
+  const rl = document.createElement('span');
+  rl.textContent = 'Putar ulang animasi';
+  replayBtn.append(rl);
   replayBtn.addEventListener('click', () => onReplay());
   root.append(replayBtn);
 
@@ -207,20 +247,33 @@ export function buildBeamPanel(
   };
 
   const showResults = (sol: BeamSolution): void => {
+    // Headline: dua angka utama paling besar, sisanya row biasa (hierarki).
+    const headline = (label: string, value: string, warn = false): HTMLDivElement => {
+      const d = document.createElement('div');
+      d.className = 'headline';
+      const l = document.createElement('span');
+      l.className = 'headline-label';
+      l.textContent = label;
+      const v = document.createElement('span');
+      v.className = 'big-num' + (warn ? ' warn' : '');
+      v.textContent = value;
+      d.append(l, v);
+      return d;
+    };
     results.replaceChildren(
+      headline('δ maks', fmtLength(sol.maxDeflection.value)),
+      headline('σ lentur', fmtStress(sol.maxBendingStress), sol.maxBendingStress > MATERIALS[params.materialId]!.yieldStrength),
       row('Reaksi Ra', fmtForce(sol.reactions.Ra)),
       sol.reactions.Rb !== 0 || params.support === 'ss' ? row('Reaksi Rb', fmtForce(sol.reactions.Rb)) : row('Momen jepit Ma', fmtMoment(sol.reactions.Ma)),
       row('M maks', fmtMoment(sol.maxMoment.value)),
       row('V maks', fmtForce(sol.maxShear.value)),
-      row('δ maks', fmtLength(sol.maxDeflection.value)),
-      row('σ lentur', fmtStress(sol.maxBendingStress)),
       row('Safety factor', sol.safetyFactor === Infinity ? '∞' : `${sol.safetyFactor.toPrecision(3)}`, sol.safetyFactor < 1.5 ? 'warn' : ''),
     );
 
     const sec = SECTION_PRESETS.find((s) => s.id === params.sectionId)!;
     const mat = MATERIALS[params.materialId]!;
     explainSteps.replaceChildren(
-      step('1. EI = E·I', `EI = ${fmtStress(mat.elasticModulus)} × ${sec.props.Iy.toPrecision(4)} mm⁴ = ${(sol.EI / 1000).toPrecision(4)} kN·m²`),
+      step('1. EI = E·I', `EI = ${fmtStress(mat.elasticModulus)} × ${(sec.props.Iy / 1e6).toPrecision(4)}×10⁶ mm⁴ = ${(sol.EI / 1000).toPrecision(4)} kN·m²`),
       step('2. Reaksi', params.support === 'cantilever'
         ? `Kantilever: Ra = P = ${fmtForce(sol.reactions.Ra)}, Ma = −P·a = ${fmtMoment(sol.reactions.Ma)}`
         : `ΣM tentang A → Rb = P·a/L = ${fmtForce(sol.reactions.Rb)}; Ra = P − Rb = ${fmtForce(sol.reactions.Ra)}`),
