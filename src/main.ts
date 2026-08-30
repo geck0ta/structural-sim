@@ -80,7 +80,6 @@ async function main(): Promise<void> {
 
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
-  timeline.className = 'glass';
   const chartsRow = document.createElement('div');
   chartsRow.className = 'charts-row';
   chartsRow.append(charts.shear.el, charts.moment.el, charts.deflect.el);

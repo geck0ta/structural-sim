@@ -19,8 +19,6 @@ export class MiniChart {
   private readonly grad: SVGLinearGradientElement;
   private readonly plot: SVGPathElement;
   private readonly plotGroup: SVGGElement;
-  private readonly gridA: SVGLineElement;
-  private readonly gridB: SVGLineElement;
   private readonly zero: SVGLineElement;
   private readonly tip: SVGLineElement;
   private readonly dot: SVGCircleElement;
@@ -69,17 +67,8 @@ export class MiniChart {
     this.fill = document.createElementNS(NS, 'path');
     this.fill.setAttribute('fill', `url(#${gid})`);
 
-    // Gridline horizontal halus — di belakang kurva, tanpa fill/background.
-    // warna via inline STYLE: var() di atribut presentasi SVG tak di-resolve → hitam.
-    const mkGrid = (): SVGLineElement => {
-      const l = document.createElementNS(NS, 'line');
-      l.style.stroke = 'var(--border)';
-      l.setAttribute('stroke-width', '1');
-      l.setAttribute('stroke-opacity', '0.6');
-      return l;
-    };
-    this.gridA = mkGrid();
-    this.gridB = mkGrid();
+    // Garis nol putus-putus (referensi); tanpa gridline — chart langsung di atas kanvas.
+    this.zero = document.createElementNS(NS, 'line');
 
     // Clip: kurva + crosshair tak keluar kotak chart.
     const clip = document.createElementNS(NS, 'clipPath');
@@ -138,8 +127,8 @@ export class MiniChart {
     this.axisEl.setAttribute('text-anchor', 'end');
     this.axisEl.textContent = '';
 
-    // fill paling belakang, lalu gridline; plot ter-clip; label & sumbu di atasnya.
-    this.plotGroup.append(this.fill, this.gridA, this.gridB, this.plot, this.tip, this.dot);
+    // fill paling belakang; plot ter-clip; label & sumbu di atasnya.
+    this.plotGroup.append(this.fill, this.plot, this.tip, this.dot);
     this.el.append(defs, this.zero, this.plotGroup, this.labelEl, this.x0El, this.axisEl);
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
@@ -194,16 +183,6 @@ export class MiniChart {
     this.zero.setAttribute('x2', String(this.w - PAD));
     this.zero.setAttribute('y1', zy);
     this.zero.setAttribute('y2', zy);
-    const g1 = py(vAbs * 0.5).toFixed(1);
-    const g2 = py(-vAbs * 0.5).toFixed(1);
-    for (const g of [this.gridA, this.gridB]) {
-      g.setAttribute('x1', String(PAD));
-      g.setAttribute('x2', String(this.w - PAD));
-    }
-    this.gridA.setAttribute('y1', g1);
-    this.gridA.setAttribute('y2', g1);
-    this.gridB.setAttribute('y1', g2);
-    this.gridB.setAttribute('y2', g2);
 
     if (this.hoverI >= 0 && this.hoverI < n) {
       const p = d[this.hoverI]!;
