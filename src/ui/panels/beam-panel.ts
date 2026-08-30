@@ -57,6 +57,14 @@ export function buildBeamPanel(
     presets[0].id,
     (id) => {
       const p = presets.find((x) => x.id === id)!;
+      // D19: skeleton singkat saat ganti kasus — feedback transisi (300ms).
+      results.replaceChildren();
+      for (let i = 0; i < 3; i++) {
+        const sk = document.createElement('div');
+        sk.className = 'skeleton';
+        sk.style.width = `${72 - i * 14}%`;
+        results.append(sk);
+      }
       p.apply();
       if (params.support === 'cantilever') params.loadAt = params.span;
       for (const f of onChipClick) f();
