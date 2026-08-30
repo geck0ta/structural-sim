@@ -12,9 +12,11 @@ export interface ChartData {
 
 export const CHART_COLORS = { shear: '#ff9f0a', moment: '#ff375f', deflect: '#30d158' } as const;
 
-/** Chart satu seri: garis + gridline halus + crosshair hover + readout. Tanpa area fill. */
+/** Chart satu seri: garis + area fill gradien dari garis nol + gridline + crosshair + readout. */
 export class MiniChart {
   readonly el: SVGSVGElement;
+  private readonly fill: SVGPathElement;
+  private readonly grad: SVGLinearGradientElement;
   private readonly plot: SVGPathElement;
   private readonly plotGroup: SVGGElement;
   private readonly gridA: SVGLineElement;
@@ -40,6 +42,32 @@ export class MiniChart {
     this.el.setAttribute('viewBox', `0 0 ${w} ${h}`);
     this.el.setAttribute('role', 'img');
     this.el.setAttribute('aria-label', label);
+
+    // Area fill: gradien warna seri memudar dari garis nol (puncak 0.18, dua arah).
+    const gid = `grad-${Math.round(Math.random() * 1e6)}`;
+    this.grad = document.createElementNS(NS, 'linearGradient');
+    this.grad.id = gid;
+    this.grad.setAttribute('x1', '0');
+    this.grad.setAttribute('y1', '0');
+    this.grad.setAttribute('x2', '0');
+    this.grad.setAttribute('y2', '1');
+    const s1 = document.createElementNS(NS, 'stop');
+    s1.setAttribute('offset', '0');
+    s1.setAttribute('stop-color', color);
+    s1.setAttribute('stop-opacity', '0');
+    const s2 = document.createElementNS(NS, 'stop');
+    s2.setAttribute('offset', '0.5');
+    s2.setAttribute('stop-color', color);
+    s2.setAttribute('stop-opacity', '0.18');
+    const s3 = document.createElementNS(NS, 'stop');
+    s3.setAttribute('offset', '1');
+    s3.setAttribute('stop-color', color);
+    s3.setAttribute('stop-opacity', '0');
+    this.grad.append(s1, s2, s3);
+    const defs = document.createElementNS(NS, 'defs');
+    defs.append(this.grad);
+    this.fill = document.createElementNS(NS, 'path');
+    this.fill.setAttribute('fill', `url(#${gid})`);
 
     // Gridline horizontal halus — di belakang kurva, tanpa fill/background.
     // warna via inline STYLE: var() di atribut presentasi SVG tak di-resolve → hitam.
@@ -110,9 +138,9 @@ export class MiniChart {
     this.axisEl.setAttribute('text-anchor', 'end');
     this.axisEl.textContent = '';
 
-    // plot ter-clip; gridline bawah kurva; label & sumbu di atasnya.
-    this.plotGroup.append(this.gridA, this.gridB, this.plot, this.tip, this.dot);
-    this.el.append(this.zero, this.plotGroup, this.labelEl, this.x0El, this.axisEl);
+    // fill paling belakang, lalu gridline; plot ter-clip; label & sumbu di atasnya.
+    this.plotGroup.append(this.fill, this.gridA, this.gridB, this.plot, this.tip, this.dot);
+    this.el.append(defs, this.zero, this.plotGroup, this.labelEl, this.x0El, this.axisEl);
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
@@ -160,6 +188,7 @@ export class MiniChart {
       dd += (i === 0 ? 'M' : 'L') + px(i).toFixed(1) + ',' + py(d[i]!.v).toFixed(1);
     }
     this.plot.setAttribute('d', dd);
+    this.fill.setAttribute('d', `${dd} L${px(n - 1).toFixed(1)},${py(0).toFixed(1)} L${px(0).toFixed(1)},${py(0).toFixed(1)} Z`);
     const zy = py(0).toFixed(1);
     this.zero.setAttribute('x1', String(PAD));
     this.zero.setAttribute('x2', String(this.w - PAD));
