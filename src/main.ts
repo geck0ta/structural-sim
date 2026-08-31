@@ -108,7 +108,15 @@ async function main(): Promise<void> {
     deflect: new MiniChart('Defleksi y(x)', 'mm', CHART_COLORS.deflect, 260, 64, fmtLength, true), // sumbu gabung: label hanya di chart terakhir
   };
   // Hover chart mana pun → crosshair 3D di x sama (sinkron 2D→3D).
-  for (const c of Object.values(charts)) c.onHover = (x) => view.setCrosshair(x);
+  let pinnedX: number | null = null; // F1: klik chart → pin persist; klik dekat sebelumnya = lepas
+  for (const c of Object.values(charts)) {
+    c.onHover = (x) => view.setCrosshair(x);
+    c.onPin = (x) => {
+      if (x !== null && pinnedX !== null && Math.abs(x - pinnedX) < 0.3) x = null; // toggle
+      pinnedX = x;
+      view.setPin(x);
+    };
+  }
 
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';

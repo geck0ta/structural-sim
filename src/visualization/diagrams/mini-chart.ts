@@ -16,6 +16,8 @@ export const CHART_COLORS = { shear: '#ff9f0a', moment: '#ff375f', deflect: '#30
 export class MiniChart {
   readonly el: SVGSVGElement;
   onHover: ((x: number | null) => void) | null = null;
+  /** Callback klik (pin persist) — x meter pada titik data terdekat. */
+  onPin: ((x: number | null) => void) | null = null;
   private data: readonly ChartData[] = [];
   private hoverI = -1;
   private readonly grad: SVGLinearGradientElement;
@@ -180,6 +182,14 @@ export class MiniChart {
 
     this.el.addEventListener('pointermove', (e) => this.onMove(e));
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
+    // F1: klik → pin marker 3D persist (toggle di main.ts).
+    this.el.addEventListener('click', (e) => {
+      if (!this.data.length) return;
+      const r = this.el.getBoundingClientRect();
+      const t = ((e.clientX - r.left) / r.width) * this.w;
+      const i = Math.min(Math.max(Math.round(((t - PAD) / (this.w - 2 * PAD)) * (this.data.length - 1)), 0), this.data.length - 1);
+      this.onPin?.(this.data[i]!.x);
+    });
   }
 
   private readonly plotGroup: SVGGElement;

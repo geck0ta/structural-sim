@@ -328,6 +328,7 @@ export function buildBeamPanel(
       sol.reactions.Rb !== 0 || params.support === 'ss' ? row('Reaksi Rb', fmtForce(sol.reactions.Rb)) : row('Momen jepit Ma', fmtMoment(sol.reactions.Ma)),
       row('M maks', fmtMoment(sol.maxMoment.value)),
       row('V maks', fmtForce(sol.maxShear.value)),
+      row('Energi regangan U', sol.strainEnergy > 0 ? `${(sol.strainEnergy).toPrecision(3)} J` : '0 J'), // F6
       row(`Safety factor${dc}`, sol.safetyFactor === Infinity ? '∞' : `${sol.safetyFactor.toPrecision(3)}`, sol.safetyFactor < 1.5 ? 'warn' : ''),
     );
 
@@ -340,6 +341,7 @@ export function buildBeamPanel(
         : `ΣM tentang A → Rb = P·a/L = ${fmtForce(sol.reactions.Rb)}; Ra = P − Rb = ${fmtForce(sol.reactions.Ra)}`),
       step('3. σ = M·c/I', `σ = ${fmtMoment(sol.maxMoment.value)} × ${fmtLength((sec.shape === 'circular' ? sec.dims.d : sec.dims.h) / 2000)} / ${sec.props.Iy.toPrecision(4)} mm⁴ = ${fmtStress(sol.maxBendingStress)}`),
       step('4. SF = fy/σ', `SF = ${fmtStress(mat.yieldStrength)} / ${fmtStress(sol.maxBendingStress)} = ${sol.safetyFactor === Infinity ? '∞' : sol.safetyFactor.toPrecision(3)}`),
+      step('5. Keseimbangan', `ΣV = ${sol.equilibrium.sumV.toExponential(1)} N · ΣM = ${sol.equilibrium.sumM.toExponential(1)} N·m → ${sol.equilibrium.ok ? 'SETIMBANG ✓' : 'CEK ULANG'}`), // F5
     );
   };
 

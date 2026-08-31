@@ -104,6 +104,7 @@ export class BeamView {
   private readonly udlArrows: ForceArrow[] = [];
   private readonly supports = new THREE.Group();
   private readonly crosshair!: THREE.Line;
+  private readonly pin!: THREE.Mesh;
   /** Marker hover sinkron dari chart (garis vertikal + titik di beam). */
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
@@ -134,6 +135,14 @@ export class BeamView {
     this.crosshair.visible = false;
     this.crosshair.computeLineDistances();
     this.scene.add(this.crosshair);
+
+    // Pin persist dari klik chart — titik kecil accent, tetap sampai klik lagi (F1).
+    this.pin = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0x0a84ff }),
+    );
+    this.pin.visible = false;
+    this.scene.add(this.pin);
   }
 
   /** Crosshair 3D: x meter → garis vertikal accent di posisi hover chart. null = sembunyi. */
@@ -150,6 +159,16 @@ export class BeamView {
     this.crosshair.geometry.computeBoundingSphere();
     this.crosshair.computeLineDistances();
     this.crosshair.visible = true;
+  }
+
+  /** F1: pin marker persist di x (klik chart toggle). x null = lepas. */
+  setPin(xM: number | null): void {
+    if (xM === null || xM < 0 || xM > this.span) {
+      this.pin.visible = false;
+      return;
+    }
+    this.pin.position.set(xM, this.beamCenterY, 0);
+    this.pin.visible = true;
   }
 
   get beamCenterY(): number {

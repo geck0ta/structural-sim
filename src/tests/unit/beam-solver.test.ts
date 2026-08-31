@@ -116,3 +116,24 @@ describe('validasi input (§8)', () => {
     expect(sol.maxMoment.value).toBe(0);
   });
 });
+
+describe('keseimbangan & energi (F5/F6)', () => {
+  const L = 6;
+  it('ΣV=0 dan ΣM=0 untuk P titik SS', () => {
+    const sol = solveBeam(makeCase('ss', [{ type: 'point', value: 30e3, at: L / 2 }]));
+    expect(sol.equilibrium.ok).toBe(true);
+    expect(Math.abs(sol.equilibrium.sumV)).toBeLessThan(1e-3);
+    expect(Math.abs(sol.equilibrium.sumM)).toBeLessThan(1e-2);
+  });
+  it('ΣV=0 untuk UDL kantilever', () => {
+    const sol = solveBeam(makeCase('cantilever', [{ type: 'udl', value: 10e3 }]));
+    expect(sol.equilibrium.ok).toBe(true);
+  });
+  it('energi strain SS-UDL: U = w²L⁵/240EI (±0.1%)', () => {
+    const w = 10e3;
+    const EI = steel.elasticModulus * (ipe.props.Iy / 1e12);
+    const sol = solveBeam(makeCase('ss', [{ type: 'udl', value: w }]));
+    const UExact = (w * w * L ** 5) / (240 * EI);
+    expect(Math.abs(sol.strainEnergy / UExact - 1)).toBeLessThan(TOL);
+  });
+});

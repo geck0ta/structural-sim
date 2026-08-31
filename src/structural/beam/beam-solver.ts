@@ -34,6 +34,8 @@ export interface BeamSolution {
   readonly maxShear: Extremum; // |V| terbesar
   readonly maxBendingStress: number; // Pa, serat tepi dari |M| maks
   readonly safetyFactor: number; // yield/σ_lentur; Infinity bila tak dibebani
+  readonly equilibrium: { sumV: number; sumM: number; ok: boolean }; // F5: cek keseimbangan
+  readonly strainEnergy: number; // F6: U = ∫M²/2EI dx (J)
   readonly at: (x: number) => BeamSample;
   readonly samples: (n: number) => readonly BeamSample[];
 }
@@ -146,7 +148,22 @@ export function solveBeam(c: BeamCase): BeamSolution {
   const maxBendingStress = (Math.abs(maxMoment.value) * cDepth) / I_m4; // σ = M·c/I (Pa)
   const safetyFactor = maxBendingStress > 0 ? material.yieldStrength / maxBendingStress : Infinity;
 
-  return { EI, reactions: { Ra, Rb, Ma }, maxDeflection, maxMoment, maxShear, maxBendingStress, safetyFactor, at, samples };
+  // F5: cek keseimbangan ΣV=0 & ΣM=0 (validasi solver, ditampilkan Explain).
+  // Reaksi dihitung dari sumF/sumMCw beban — cek ulang residualnya (harus ~0).
+  // Momen reaksi dinding kantilever = −Ma (Ma internal jepit; reaksi berlawanan tanda).
+  const resV = Ra + Rb - sumF;
+  const resM = Rb * L - Ma - sumMCw; // momen tentang x=0
+  const equilibrium = { sumV: resV, sumM: resM, ok: Math.abs(resV) < 1e-6 * Math.max(sumF, 1) && Math.abs(resM) < 1e-3 * Math.max(Math.abs(sumMCw), 1) };
+
+  // F6: energi strain U = ∫M²/2EI dx (J) — integrasi trapesium sampel.
+  let U = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const m0 = pts[i - 1]!.M, m1 = pts[i]!.M;
+    U += ((m0 * m0 + m1 * m1) / 2) * (pts[i]!.x - pts[i - 1]!.x);
+  }
+  U /= 2 * EI;
+
+  return { EI, reactions: { Ra, Rb, Ma }, maxDeflection, maxMoment, maxShear, maxBendingStress, safetyFactor, equilibrium, strainEnergy: U, at, samples };
 }
 
 /** §5 — buckling Euler: P_cr = π²EI/(KL)². K: 0.5 braced-both, 0.7 pinned-fixed, 1.0 pinned, 2.0 fixed-free. */
