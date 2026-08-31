@@ -35,7 +35,7 @@ export class SceneManager {
   private clouds!: THREE.Group;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }); // F12: export PNG perlu buffer tersimpan
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, DPR_MAX));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

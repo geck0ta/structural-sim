@@ -271,6 +271,26 @@ async function main(): Promise<void> {
   kbdHint.className = 'kbd-hint';
   kbdHint.innerHTML = '<kbd>R</kbd> reset view · <kbd>Space</kbd> ulang animasi';
   document.body.append(kbdHint);
+
+  // F12: export viewport → PNG (tombol floating, sebelah reset).
+  const shotBtn = document.createElement('button');
+  shotBtn.type = 'button';
+  shotBtn.className = 'ghost-btn theme-float';
+  shotBtn.style.right = 'calc(324px + 84px)';
+  shotBtn.setAttribute('aria-label', 'Simpan tangkapan viewport PNG');
+  shotBtn.title = 'Simpan PNG';
+  shotBtn.append(icon('camera', 18));
+  shotBtn.addEventListener('click', () => {
+    // pastikan frame terbaru ada di buffer (preserveDrawingBuffer: true)
+    sm.renderer.render(sm.scene, sm.camera);
+    const c = document.getElementById('canvas3d') as HTMLCanvasElement | null;
+    if (!c) return;
+    const a = document.createElement('a');
+    a.href = c.toDataURL('image/png');
+    a.download = `structural-lab-${Date.now()}.png`;
+    a.click();
+  });
+  document.body.append(shotBtn);
   const killHint = (): void => {
     hint.classList.add('hide');
     document.getElementById('canvas3d')?.removeEventListener('pointerdown', killHint);
