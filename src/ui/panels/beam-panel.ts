@@ -42,9 +42,9 @@ export function buildBeamPanel(
   // Preset kasus umum → satu picker "Contoh kasus" (declutter: bukan 3 chip wrap)
   const onChipClick: Array<() => void> = [];
   const presets = [
-    { id: 'cantilever', label: 'Kantilever — beban titik di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; params.presetId = 'cantilever'; } },
-    { id: 'bridge', label: 'Jembatan SS — beban titik di tengah', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; params.presetId = 'bridge'; } },
-    { id: 'udl', label: 'Beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadW = 15e3; params.loadType = 'udl'; params.presetId = 'udl'; } },
+    { id: 'cantilever', label: 'Kantilever, beban terpusat di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; params.presetId = 'cantilever'; } },
+    { id: 'bridge', label: 'Balok sederhana, beban terpusat di tengah bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; params.presetId = 'bridge'; } },
+    { id: 'udl', label: 'Balok sederhana, beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadW = 15e3; params.loadType = 'udl'; params.presetId = 'udl'; } },
   ];
   const presetPicker = new IOSPicker(
     presets.map((p) => ({ id: p.id, label: p.label })),

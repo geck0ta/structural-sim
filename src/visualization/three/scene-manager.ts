@@ -241,11 +241,14 @@ export class SceneManager {
         this.clouds.add(sp);
       }
     };
-    // 3 bawan kecil di horizon — JANGAN besar, dan dalam frame kamera default (y rendah,
+    // 6 bawan kecil di horizon — JANGAN besar, dan dalam frame kamera default (y rendah,
     // |x| ≤ ~55): 2 ruas viewport atas, tidak menutup model.
     cloudCluster(-48, 30, -70, 6, 10);
     cloudCluster(20, 34, -78, 5, 12);
     cloudCluster(56, 28, -60, 6, 9);
+    cloudCluster(-14, 38, -85, 5, 11);
+    cloudCluster(38, 32, -92, 6, 10);
+    cloudCluster(-30, 33, -95, 5, 9);
     this.scene.add(this.clouds);
   }
 
