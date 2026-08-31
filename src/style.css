@@ -283,7 +283,7 @@ button:focus-visible,
 }
 
 .mode-row .math-row {
-  margin-bottom: 0;
+  margin: 0; /* wrapper chip di mode-row: tanpa margin — chip sejajar persis dgn segmented (sebelumnya margin-top 12px mendorong chip turun ~6px) */
 }
 
 /* divider tipis antar grup (P9: cukup 1 sebelum hasil) */
