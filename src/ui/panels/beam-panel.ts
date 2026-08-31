@@ -18,7 +18,7 @@ export interface BeamParams {
   loadAt: number;
   materialId: string;
   sectionId: string;
-  support: 'cantilever' | 'ss';
+  support: 'cantilever' | 'ss' | 'overhang';
   loadType: 'point' | 'two' | 'udl';
   /** Kasus preset aktif — sinkron dengan loadType/support agar judul tak konflik. */
   presetId: 'cantilever' | 'bridge' | 'udl' | 'two';
@@ -201,6 +201,7 @@ export function buildBeamPanel(
     [
       { value: 'cantilever', label: 'Kantilever' },
       { value: 'ss', label: 'Sederhana' },
+      { value: 'overhang', label: 'Overhang' },
     ],
     params.support,
     (v) => {

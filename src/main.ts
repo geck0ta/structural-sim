@@ -75,7 +75,7 @@ async function main(): Promise<void> {
       if (typeof saved.deformScale === 'number' && saved.deformScale >= 1 && saved.deformScale <= 5) params.deformScale = saved.deformScale;
       if (saved.materialId && MATERIALS[saved.materialId]) params.materialId = saved.materialId;
       if (saved.sectionId && SECTION_PRESETS.some((s) => s.id === saved.sectionId)) params.sectionId = saved.sectionId;
-      if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
+      if (saved.support === 'ss' || saved.support === 'cantilever' || saved.support === 'overhang') params.support = saved.support;
       if (saved.loadType === 'point' || saved.loadType === 'two' || saved.loadType === 'udl') {
         params.loadType = saved.loadType;
         // Judul preset & picker mengikuti state tersimpan — tanpa konflik "P di ujung" saat udl.
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
     const at = qs('at'); if (at !== null) params.loadAt = Math.min(Math.max(at, 0), params.span);
     const mat = q.get('mat'); if (mat && MATERIALS[mat]) params.materialId = mat;
     const sec = q.get('sec'); if (sec && SECTION_PRESETS.some((s) => s.id === sec)) params.sectionId = sec;
-    const sup = q.get('sup'); if (sup === 'ss' || sup === 'cantilever') params.support = sup;
+    const sup = q.get('sup'); if (sup === 'ss' || sup === 'cantilever' || sup === 'overhang') params.support = sup;
     const lt = q.get('lt'); if (lt === 'point' || lt === 'two' || lt === 'udl') params.loadType = lt;
     if (params.support === 'cantilever') params.loadAt = params.span;
     if (params.loadType === 'udl' && params.support === 'ss') params.presetId = 'udl';
@@ -259,7 +259,7 @@ async function main(): Promise<void> {
     document.documentElement.dataset.theme = mode;
     themeLight = mode !== 'dark';
     sm.setTheme(mode);
-    view.setTheme(mode !== 'dark');
+    view.setTheme(mode);
     view.setBeamMaterial(material3D(material(), textures, mode !== 'dark'));
     try {
       localStorage.setItem('sl-theme', mode);

@@ -119,6 +119,8 @@ export class BeamView {
   readonly group = new THREE.Group();
   private mesh: THREE.Mesh | null = null;
   private posAttr: THREE.BufferAttribute | null = null;
+  private mirror: THREE.Mesh | null = null; // refleksi lantai: geometri sama, y dinegasi
+  private mirrorAttr: THREE.BufferAttribute | null = null;
   private curve: THREE.Line | null = null; // kurva elastis y(x) muka depan
   private profile: THREE.Vector2[] = [];
   private rings = 101;
@@ -235,9 +237,10 @@ export class BeamView {
     this.beamMat.needsUpdate = true;
   }
 
-  /** Tema: tumpuan lebih terang di tema terang (dark gray hilang di siang hari). */
-  setTheme(light: boolean): void {
-    this.propMat.color.set(light ? 0x8b939c : 0x484f57);
+  /** Tema: tumpuan adaptif — terang di light, hangat di dusk, gelap di dark. */
+  setTheme(light: boolean | 'light' | 'dusk' | 'dark'): void {
+    const color = light === 'dusk' ? 0x5a4a52 : light === true || light === 'light' ? 0x8b939c : 0x484f57;
+    this.propMat.color.set(color);
   }
 
   /** Rebuild geometri (dipanggil saat penampang/panjang/support berubah). */
@@ -310,6 +313,24 @@ export class BeamView {
     this.mesh.receiveShadow = true;
     this.group.add(this.mesh);
 
+    // Refleksi lantai (op 0.08): salinan geometri, y = −(centerY + yc + v) per frame.
+    if (this.mirror) {
+      this.group.remove(this.mirror);
+      this.mirror.geometry.dispose();
+      (this.mirror.material as THREE.Material).dispose();
+      this.mirror = null;
+    }
+    const mGeo = new THREE.BufferGeometry();
+    const mPos = new Float32Array(vertCount * 3);
+    this.mirrorAttr = new THREE.BufferAttribute(mPos, 3);
+    this.mirrorAttr.setUsage(THREE.DynamicDrawUsage);
+    mGeo.setAttribute('position', this.mirrorAttr);
+    mGeo.setAttribute('uv', uvAttr);
+    mGeo.setIndex(index);
+    this.mirror = new THREE.Mesh(mGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.08, depthWrite: false }));
+    this.mirror.renderOrder = -1;
+    this.group.add(this.mirror);
+
     this.buildSupports(support);
   }
 
@@ -327,6 +348,10 @@ export class BeamView {
     };
     if (support === 'cantilever') {
       this.supports.add(box(-0.13, 0.26, botY + this.depth / 2 + 0.35)); // dinding jepit
+    } else if (support === 'overhang') {
+      // Dua tumpuan di dalam: x = L/5 dan L − L/5 (default solver) — ujung menggantung.
+      const e = this.span / 5;
+      this.supports.add(box(e, w * 0.85, botY), box(this.span - e, w * 0.85, botY));
     } else {
       this.supports.add(box(0, w * 0.85, botY), box(this.span, w * 0.85, botY));
     }
@@ -426,11 +451,27 @@ export class BeamView {
       pos[c0 + 5] = 0;
       this.posAttr.needsUpdate = true;
       this.mesh.geometry.computeVertexNormals();
+
+      // Mirror ikut deform: y = −(centerY + yc + v) — refleksi terhadap lantai y=0.
+      const mp = this.mirrorAttr!.array as Float32Array;
+      for (let i = 0; i < this.rings; i++) {
+        const x = i * dx;
+        const yc = anim.y[i] * f * scale;
+        for (let k = 0; k < P; k++) {
+          const v = this.profile[k].y;
+          mp[i * P * 3 + k * 3] = x;
+          mp[i * P * 3 + k * 3 + 1] = -(this.centerY + yc + v);
+          mp[i * P * 3 + k * 3 + 2] = this.profile[k].x;
+        }
+      }
+      this.mirrorAttr!.needsUpdate = true;
     }
 
-    // Reaksi (kuning): kecil, di belakang balok, dari bawah tumpuan ke atas
-    placeReact(this.reactA, support === 'cantilever' ? 0.25 : 0, show && Math.abs(reactions.Ra) > 1);
-    placeReact(this.reactB, this.span, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
+    // Reaksi (kuning): kecil, di belakang balok, dari bawah tumpuan ke atas.
+    // Overhang: reaksi di tumpuan dalam e & L−e (bukan ujung).
+    const e = support === 'overhang' ? this.span / 5 : 0;
+    placeReact(this.reactA, support === 'cantilever' ? 0.25 : e, show && Math.abs(reactions.Ra) > 1);
+    placeReact(this.reactB, this.span - e, support !== 'cantilever' && show && Math.abs(reactions.Rb) > 1);
 
     // Kurva elastis y(x): 64 titik pada lintang sumbu netral, muka depan (z = width/2+0.06).
     if (this.curve) {

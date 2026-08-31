@@ -7,7 +7,7 @@ import { sectionDepth } from '../models/section';
 // V shear up-positive (Gere); M sagging positif; moment load CCW positif.
 // FEM menyusul PHASE 4 — ini analytical engine untuk L2 + benchmark ≤0.1%.
 
-export type BeamSupport = 'ss' | 'cantilever';
+export type BeamSupport = 'ss' | 'cantilever' | 'overhang';
 
 export interface PointLoad { readonly type: 'point'; readonly value: number; readonly at: number } // N, ke bawah+
 export interface UdlLoad { readonly type: 'udl'; readonly value: number; readonly from?: number; readonly to?: number } // N/m, ke bawah+
@@ -17,6 +17,7 @@ export type BeamLoad = PointLoad | UdlLoad | MomentLoad;
 export interface BeamCase {
   readonly span: number; // m
   readonly support: BeamSupport;
+  readonly overhang?: number; // m — jarak tumpuan dari ujung (hanya 'overhang'); default L/5, clamp 0.1..L/2−0.1
   readonly loads: readonly BeamLoad[];
   readonly section: Section;
   readonly material: Material;
@@ -77,17 +78,30 @@ export function solveBeam(c: BeamCase): BeamSolution {
     }
   }
 
-  // Reaksi statis. SS: pin x=0, roller x=L. Cantilever: fix x=0.
-  const Rb = support === 'ss' ? sumMCw / L : 0;
-  const Ra = support === 'ss' ? sumF - Rb : sumF;
+  // Reaksi statis. SS: pin x=0, roller x=L. Cantilever: fix x=0. Overhang: dua tumpuan
+  // di dalam (x=e dan x=L−e) — reaksi dari momen tentang tumpuan A; ujung menggantung.
+  const e = support === 'overhang' ? Math.max(0.1, Math.min(c.overhang ?? L / 5, L / 2 - 0.1)) : 0;
+  const sA = e, sB = L - e;
+  const Rb = support === 'ss' ? sumMCw / L : support === 'overhang' ? (sumMCw - sumF * sA) / (sB - sA) : 0;
+  const Ra = support === 'cantilever' ? sumF : sumF - Rb;
   const Ma = support === 'cantilever' ? -sumMCw : 0;
+  // Overhang: reaksi = lompatan V ke atas di tumpuan sA/sB (ujung 0 & L tanpa reaksi).
+  if (support === 'overhang') {
+    for (const [x, R] of [[sA, Ra], [sB, Rb]] as const) {
+      const j = jumps.get(x) ?? { dV: 0, dM: 0 };
+      j.dV += R;
+      jumps.set(x, j);
+      breaks.add(x);
+    }
+  }
 
   const EI = material.elasticModulus * (section.props.Iy / 1e12); // mm⁴ → m⁴
   if (!(EI > 0)) throw new Error('Rigiditas EI tidak valid — cek material dan penampang.');
 
-  // Pass 1: V, M eksak di tiap breakpoint.
+  // Pass 1: V, M eksak di tiap breakpoint. Overhang: mulai V=M=0 di ujung gantung
+  // (reaksi sudah masuk sebagai lompatan di sA/sB — pass memprosesnya otomatis).
   const xs = [...breaks].sort((p, q) => p - q);
-  let V = Ra, M = Ma;
+  let V = support === 'overhang' ? 0 : Ra, M = support === 'overhang' ? 0 : Ma;
   const j0 = jumps.get(0); if (j0) { V += j0.dV; M += j0.dM; }
   const segs: Seg[] = [];
   for (let i = 0; i < xs.length - 1; i++) {
@@ -110,9 +124,25 @@ export function solveBeam(c: BeamCase): BeamSolution {
     yl = yl + s.theta * t + (Mi * t * t) / (2 * EI) + (Vi * t ** 3) / (6 * EI) - (q * t ** 4) / (24 * EI);
   }
 
-  // Konstanta integrasi dari BC deflecti: SS y(L)=0 → θ0 = −y_lokal(L)/L; cantilever θ0 = 0.
-  const th0 = support === 'ss' ? -yl / L : 0;
-  for (const s of segs) { s.theta += th0; s.y += th0 * s.x0; }
+  // y lokal murni (tanpa konstanta BC) pada x — untuk menyelesaikan konstanta overhang.
+  const yl_at = (x: number): number => {
+    const xc = Math.min(Math.max(x, 0), L);
+    const s = segs.find(g => xc >= g.x0 && xc <= g.x0 + g.len) ?? segs[segs.length - 1];
+    const t = xc - s.x0;
+    return s.y + s.theta * t + (s.M * t * t) / (2 * EI) + (s.V * t ** 3) / (6 * EI) - (s.q * t ** 4) / (24 * EI);
+  };
+
+  // Konstanta integrasi dari BC deflecti:
+  // - SS: y(L)=0 → θ0 = −y_lokal(L)/L; cantilever: θ0 = 0 (jepit).
+  // - Overhang: y(sA)=0 dan y(sB)=0 — dua kondisi, dua konstanta (θ0 + shift).
+  let th0 = support === 'ss' ? -yl / L : 0;
+  let yShift = 0;
+  if (support === 'overhang') {
+    const yA = yl_at(sA);
+    th0 = -(yl_at(sB) - yA) / (sB - sA); // kemiringan global: selisih y kedua tumpuan
+    yShift = -yA - th0 * sA; // C2 dari BC y(sA)=0: yl(sA)+th0·sA+C2=0
+  }
+  for (const s of segs) { s.theta += th0; s.y += th0 * s.x0 + yShift; }
 
   const at = (x: number): BeamSample => {
     const xc = Math.min(Math.max(x, 0), L);

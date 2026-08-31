@@ -55,6 +55,28 @@ describe('section props (§6 — dihitung, bukan tabel)', () => {
     expect(sol.at(L / 2).y).toBeCloseTo(-yMid, 5);
   });
 
+  it('overhang e=L/5 UDL w: R=kali wL/2, M hogging tumpuan = −we²/2, M sagging mid = w(L−2e)²/8, y tumpuan = 0', () => {
+    const L = 8, e = L / 5, w = 5e3; // m, m, N/m
+    const dims = { b: 100, h: 200 } as const;
+    const sec = { id: 't', name: 't', shape: 'rect' as const, dims, props: rectProps(dims) };
+    const EI = 1e6;
+    const mat = { name: 't', elasticModulus: EI / (sec.props.Iy * 1e-12), density: 0, poissonRatio: 0.3, yieldStrength: 1e9, thermalExpansion: 0, color: 0, source: 't' };
+    const sol = solveBeam({
+      span: L,
+      support: 'overhang',
+      loads: [{ type: 'udl', value: w, from: 0, to: L }],
+      section: sec,
+      material: mat,
+    });
+    expect(sol.reactions.Ra).toBeCloseTo((w * L) / 2, 0); // simetri — sama dgn SS biasa
+    expect(sol.at(e).M).toBeCloseTo((-w * e * e) / 2, 0); // hogging di tumpuan
+    expect(sol.at(L / 2).M).toBeCloseTo((w * (L - 2 * e) ** 2) / 8 - (w * e * e) / 2, 0); // sagging tengah: simple-span (L−2e) dikurangi hogging tumpuan
+    expect(sol.at(e).y).toBeCloseTo(0, 6); // BC tumpuan A
+    expect(sol.at(L - e).y).toBeCloseTo(0, 6); // BC tumpuan B
+    expect(sol.at(0).M).toBeCloseTo(0, 4); // ujung gantung bebas — M=0
+    expect(sol.maxMoment.value).toBeCloseTo((w * (L - 2 * e) ** 2) / 8 - (w * e * e) / 2, 0); // sagging > |hogging| saat e=L/5
+  });
+
   it('UPN200 vs tabel: A=32.2, Iy≈1910 (fillet −0.9%), Iz=116, Wx=191 (cm, satuan konsisten)', () => {
     const p = cProps({ h: 200, b: 75, tw: 8.5, tf: 11.5 });
     expect(p.A / 100).toBeCloseTo(32.2, 0); // cm² — 32.30 hitung, 32.2 tabel
