@@ -24,6 +24,8 @@ export function icon(name: string, size = 18): SVGSVGElement {
   svg.setAttribute('width', String(size));
   svg.setAttribute('height', String(size));
   svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('fill', 'none'); // sprite lucide: path garis — wajib fill:none + stroke currentColor
+  svg.setAttribute('stroke', 'currentColor');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
   use.setAttribute('href', `#${name}`);
   svg.append(use);
