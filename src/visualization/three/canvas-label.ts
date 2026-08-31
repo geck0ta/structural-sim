@@ -3,17 +3,20 @@
 
 import * as THREE from 'three';
 
-const NS_W = 512;
+const FONT = '600 38px -apple-system, Inter, system-ui, sans-serif';
+const PAD = 24;
 
 export class CanvasLabel {
   readonly sprite: THREE.Sprite;
+  private readonly c: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly tex: THREE.CanvasTexture;
   private last = '';
-  constructor(private readonly height = 0.26) {
+  constructor(private readonly height = 0.4) {
     const c = document.createElement('canvas');
-    c.width = NS_W;
+    c.width = 256;
     c.height = 64;
+    this.c = c;
     this.ctx = c.getContext('2d')!;
     this.tex = new THREE.CanvasTexture(c);
     this.tex.colorSpace = THREE.SRGBColorSpace;
@@ -27,17 +30,24 @@ export class CanvasLabel {
     if (key === this.last) return;
     this.last = key;
     const ctx = this.ctx;
-    ctx.clearRect(0, 0, NS_W, 64);
-    ctx.font = '600 38px -apple-system, Inter, system-ui, sans-serif';
+    ctx.font = FONT;
+    // Kanvas selebar teks — pixel aspect seragam: scale.x = (w/64)·h, scale.y = h.
+    // (Bug lama: kanvas diam 512px, scale dari w/64 → glyph ter-squash & ukuran
+    // berubah-ubah mengikuti panjang teks.)
+    const w = Math.ceil(ctx.measureText(text).width) + PAD;
+    if (this.c.width !== w) {
+      this.c.width = w; // resize mereset ctx — font wajib diset ulang
+      ctx.font = FONT;
+    }
+    ctx.clearRect(0, 0, w, 64);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.strokeText(text, NS_W / 2, 32);
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.strokeText(text, w / 2, 33);
     ctx.fillStyle = color;
-    ctx.fillText(text, NS_W / 2, 32);
+    ctx.fillText(text, w / 2, 33);
     this.tex.needsUpdate = true;
-    const w = Math.max(ctx.measureText(text).width + 28, 60);
     this.sprite.scale.set((w / 64) * this.height, this.height, 1);
   }
 }
