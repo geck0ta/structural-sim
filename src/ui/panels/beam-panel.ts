@@ -64,6 +64,20 @@ export function buildBeamPanel(
   );
   root.append(presetPicker.el);
 
+  // Section inspector: judul micro 10px + isi. Struktur, bukan dekorasi.
+  const section = (title: string): HTMLDivElement => {
+    const s = document.createElement('div');
+    s.className = 'insp-sec';
+    const t = document.createElement('div');
+    t.className = 'insp-sec-t';
+    t.textContent = title;
+    s.append(t);
+    return s;
+  };
+
+  // Section GEOMETRI
+  const secGeo = section('GEOMETRI');
+
   const modeSeg = new SegmentedControl(
     [
       { value: 'explore', label: 'Explore' },
@@ -119,14 +133,16 @@ export function buildBeamPanel(
     params.loadAt = Math.min(params.loadAt, v);
     if (posSlider) posSlider.slider.setRange(0.5, v, params.loadAt);
   }, fmtLength);
-  root.append(spanRow.row);
   const loadRow = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
-  root.append(loadRow.row);
   posSlider = sliderRow('Posisi beban a', 0.5, params.span, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
-  root.append(posSlider.row);
   // §7: skala deformasi ×N — user override terhadap auto-scale (default ×1.0).
   const deformRow = sliderRow('Skala deformasi', 1, 5, 0.5, () => params.deformScale, (v) => { params.deformScale = v; }, (v) => `×${v.toFixed(1)}`);
-  root.append(deformRow.row);
+
+  // Susun ke section: GEOMETRI / BEBAN / TAMPILAN / TUMPAN / MATERIAL (diisi saat kontrol dibuat)
+  const secLoad = section('BEBAN');
+  const secDisp = section('TAMPILAN');
+  const secSup = section('TUMPAN');
+  const secMat = section('MATERIAL & PENAMPANG');
 
   // Sinkron seluruh kontrol UI ke state params (dipakai preset chip & restore).
   const syncAll = (): void => {
@@ -163,7 +179,8 @@ export function buildBeamPanel(
     },
   );
   if ((params.loadType ?? 'point') === 'udl') applyLoadType('udl');
-  root.append(loadTypeLabel, loadTypeSeg.el);
+  secLoad.append(loadTypeLabel, loadTypeSeg.el, loadRow.row, posSlider!.row);
+  secDisp.append(deformRow.row);
 
   // Tumpuan
   const supLabel = document.createElement('div');
@@ -181,7 +198,7 @@ export function buildBeamPanel(
       onChange();
     },
   );
-  root.append(supLabel, supSeg.el);
+  secSup.append(supLabel, supSeg.el);
 
   // Material & penampang — 2 picker sejajar (P8), label cukup sebagai title sheet (P3)
   const matPicker = new IOSPicker(
@@ -205,7 +222,8 @@ export function buildBeamPanel(
   const pickGrid = document.createElement('div');
   pickGrid.className = 'pick-grid';
   pickGrid.append(matPicker.el, secPicker.el);
-  root.append(pickGrid);
+  secMat.append(pickGrid);
+  root.append(secGeo, secLoad, secDisp, secSup, secMat);
 
   // Replay dihapus dari panel (keputusan redesign) — Space tetap jalan dari main.ts.
 
