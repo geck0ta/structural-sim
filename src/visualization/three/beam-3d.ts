@@ -57,6 +57,20 @@ export function profilePoints(s: Section): THREE.Vector2[] {
     }
     case 'circular': {
       const r = m(s.dims.d / 2);
+      if (s.dims.t !== undefined && s.dims.t > 0) {
+        // CHS — dua loop (luar + dalam) untuk cap annulus di ujung.
+        const ri = m(s.dims.d / 2 - s.dims.t);
+        const pts: THREE.Vector2[] = [];
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2;
+          pts.push(new THREE.Vector2(r * Math.cos(a), r * Math.sin(a)));
+        }
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2;
+          pts.push(new THREE.Vector2(ri * Math.cos(a), ri * Math.sin(a)));
+        }
+        return pts;
+      }
       const pts: THREE.Vector2[] = [];
       for (let i = 0; i < 24; i++) {
         const a = (i / 24) * Math.PI * 2;
@@ -85,10 +99,13 @@ export interface DeformOpts {
   readonly reactions: { readonly Ra: number; readonly Rb: number; readonly Ma: number };
 }
 
+const CURVE_N = 64; // titik kurva elastis y(x)
+
 export class BeamView {
   readonly group = new THREE.Group();
   private mesh: THREE.Mesh | null = null;
   private posAttr: THREE.BufferAttribute | null = null;
+  private curve: THREE.Line | null = null; // kurva elastis y(x) muka depan
   private profile: THREE.Vector2[] = [];
   private rings = 101;
   span = 0; // public: main cek apakah geometri berubah (re-fit kamera)
@@ -216,6 +233,15 @@ export class BeamView {
     this.depth = (section.shape === 'circular' ? section.dims.d : section.dims.h) / 1000;
     this.width = (section.shape === 'circular' ? section.dims.d : section.dims.b) / 1000;
     this.centerY = this.depth / 2 + SUPPORT_H;
+
+    if (!this.curve) {
+      // Kurva elastis y(x) — companion analitis dashed di muka depan (§64 pipeline).
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CURVE_N * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      this.curve = new THREE.Line(g, new THREE.LineDashedMaterial({ color: 0xe88f5a, dashSize: 0.14, gapSize: 0.09, transparent: true, opacity: 0.9 }));
+      this.curve.frustumCulled = false;
+      this.group.add(this.curve);
+    }
 
     if (this.mesh) {
       this.group.remove(this.mesh);
@@ -385,6 +411,24 @@ export class BeamView {
     // Reaksi (kuning): kecil, di belakang balok, dari bawah tumpuan ke atas
     placeReact(this.reactA, support === 'cantilever' ? 0.25 : 0, show && Math.abs(reactions.Ra) > 1);
     placeReact(this.reactB, this.span, support === 'ss' && show && Math.abs(reactions.Rb) > 1);
+
+    // Kurva elastis y(x): 64 titik pada lintang sumbu netral, muka depan (z = width/2+0.06).
+    if (this.curve) {
+      this.curve.visible = show;
+      if (show) {
+        const cp = this.curve.geometry.getAttribute('position') as THREE.BufferAttribute;
+        const arr = cp.array as Float32Array;
+        const zf = this.width / 2 + 0.06;
+        for (let k = 0; k < CURVE_N; k++) {
+          const x = (k / (CURVE_N - 1)) * this.span;
+          arr[k * 3] = x;
+          arr[k * 3 + 1] = this.centerY + yAt(x);
+          arr[k * 3 + 2] = zf;
+        }
+        cp.needsUpdate = true;
+        this.curve.computeLineDistances();
+      }
+    }
   }
 
   dispose(): void {

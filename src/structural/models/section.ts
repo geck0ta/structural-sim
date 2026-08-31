@@ -1,4 +1,4 @@
-import type { IDims, RectDims, Section, SectionProps } from './types';
+import type { CircularDims, IDims, RectDims, Section, SectionProps } from './types';
 
 // §6 — properti dihitung dari dimensi (mm basis), bukan tabel hardcoded.
 // sumber rumus: Gere & Timoshenko, Mechanics of Materials.
@@ -26,7 +26,14 @@ export function iProps({ h, b, tw, tf }: IDims): SectionProps {
   return finalize(2 * b * tf + hw * tw, Iy, Iz, J, h / 2, b / 2);
 }
 
-export function circularProps(d: number): SectionProps {
+export function circularProps({ d, t }: CircularDims): SectionProps {
+  if (t !== undefined && t > 0) {
+    // CHS: di = d − 2t. Rumus Gere & Timoshenko §6: I = π(D⁴−d⁴)/64.
+    const di = d - 2 * t;
+    const I = (PI * (d ** 4 - di ** 4)) / 64;
+    const J = 2 * I;
+    return finalize((PI * (d ** 2 - di ** 2)) / 4, I, I, J, d / 2, d / 2);
+  }
   const I = (PI * d ** 4) / 64;
   return finalize((PI * d ** 2) / 4, I, I, (PI * d ** 4) / 32, d / 2, d / 2);
 }
@@ -38,7 +45,7 @@ export function sectionProps(section: Section): SectionProps {
     case 'i':
       return iProps(section.dims);
     case 'circular':
-      return circularProps(section.dims.d);
+      return circularProps(section.dims as CircularDims);
   }
 }
 
@@ -70,9 +77,16 @@ export const RECT_300_600 = {
   dims: { b: 300, h: 600 },
 } as const;
 
-function build(base: typeof IPE300 | typeof WF400 | typeof RECT_300_600): Section {
+export const CHS_219_8 = {
+  id: 'chs219x8',
+  name: 'CHS Ø219×8 (tubular)',
+  shape: 'circular',
+  dims: { d: 219, t: 8 },
+} as const;
+
+function build(base: typeof IPE300 | typeof WF400 | typeof RECT_300_600 | typeof CHS_219_8): Section {
   const s = base as Section; // props dihitung, bukan dari tabel
   return { ...s, props: sectionProps(s) };
 }
 
-export const SECTION_PRESETS: readonly Section[] = [build(IPE300), build(WF400), build(RECT_300_600)];
+export const SECTION_PRESETS: readonly Section[] = [build(IPE300), build(WF400), build(RECT_300_600), build(CHS_219_8)];

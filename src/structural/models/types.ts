@@ -23,6 +23,7 @@ export interface IDims {
 }
 export interface CircularDims {
   readonly d: number; // mm
+  readonly t?: number; // ketebalan dinding mm — ada = hollow (CHS), tidak = rod solid
 }
 
 export interface SectionProps {

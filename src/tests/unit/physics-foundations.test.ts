@@ -31,8 +31,15 @@ describe('section props (§6 — dihitung, bukan tabel)', () => {
   });
 
   it('circular d=100: I = πd⁴/64', () => {
-    const p = circularProps(100);
+    const p = circularProps({ d: 100 });
     expect(p.Iy).toBeCloseTo((Math.PI * 100 ** 4) / 64, 6);
+  });
+
+  it('CHS d=200 t=10: I = π(D⁴−d⁴)/64 ≈ 4.619e7 mm⁴', () => {
+    const p = circularProps({ d: 200, t: 10 });
+    const di = 200 - 2 * 10;
+    expect(p.Iy).toBeCloseTo((Math.PI * (200 ** 4 - di ** 4)) / 64, 4);
+    expect(p.A).toBeCloseTo((Math.PI * (200 ** 2 - di ** 2)) / 4, 4);
   });
 
   it('IPE300 dalam batas toleransi tabel ArcelorMittal (±6%)', () => {
