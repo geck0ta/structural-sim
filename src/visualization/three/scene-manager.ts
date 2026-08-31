@@ -19,6 +19,8 @@ export class SceneManager {
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
   readonly orbit: OrbitState;
+  /** Drag beban 3D: proxy hit + callback x meter (main.ts pasang). null = fitur mati. */
+  dragProbe: { object: THREE.Object3D; onDragStart: (x: number) => void; onDragMove: (x: number) => void; onDragEnd: () => void } | null = null;
   private readonly clock = new THREE.Clock();
   private readonly subscribers = new Set<(dt: number) => void>();
   private running = false;
@@ -200,16 +202,53 @@ export class SceneManager {
 
   private bindPointer(canvas: HTMLCanvasElement): void {
     let dragging = false;
+    let draggingLoad = false;
     let lastX = 0;
     let lastY = 0;
+    // Drag beban titik: hit-test panah beban saat pointerdown; jika kena → orbit skip,
+    // pointermove dipetakan ke x meter via Raycaster (dipasang main.ts).
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const toNDC = (e: PointerEvent): void => {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    };
     canvas.addEventListener('pointerdown', (e) => {
       dragging = true;
       lastX = e.clientX;
       lastY = e.clientY;
       canvas.setPointerCapture(e.pointerId);
+      if (this.dragProbe) {
+        toNDC(e);
+        ray.setFromCamera(ndc, this.camera);
+        const hits = ray.intersectObject(this.dragProbe.object, true);
+        if (hits.length > 0) {
+          draggingLoad = true;
+          this.dragProbe.onDragStart(hits[0]!.point.x);
+        }
+      }
     });
     canvas.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
+      if (draggingLoad && this.dragProbe) {
+        toNDC(e);
+        ray.setFromCamera(ndc, this.camera);
+        // Bidang kerja z=0 (sumbu balok) — x hasil intersect = posisi beban.
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const hit = new THREE.Vector3();
+        ray.ray.intersectPlane(plane, hit);
+        if (hit) this.dragProbe.onDragMove(hit.x);
+        return;
+      }
+      if (!dragging) {
+        // Hover probe → kursor grab saat di atas panah beban.
+        if (this.dragProbe) {
+          toNDC(e);
+          ray.setFromCamera(ndc, this.camera);
+          const hover = ray.intersectObject(this.dragProbe.object, true).length > 0;
+          canvas.style.cursor = hover ? 'grab' : '';
+        }
+        return;
+      }
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
       lastX = e.clientX;
@@ -218,6 +257,8 @@ export class SceneManager {
       this.orbit.phi.target = THREE.MathUtils.clamp(this.orbit.phi.target - dy * 0.005, 0.05, Math.PI / 2 - 0.02);
     });
     const end = (): void => {
+      if (draggingLoad && this.dragProbe) this.dragProbe.onDragEnd();
+      draggingLoad = false;
       dragging = false;
     };
     canvas.addEventListener('pointerup', end);

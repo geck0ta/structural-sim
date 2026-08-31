@@ -136,6 +136,38 @@ async function main(): Promise<void> {
     };
   }
 
+  // Expand chart: dblclick → overlay MiniChart besar (hover presisi, label penuh).
+  const overlayHost = document.createElement('div');
+  overlayHost.id = 'chart-overlay';
+  overlayHost.style.display = 'none';
+  document.body.append(overlayHost);
+  let overlayChart: MiniChart | null = null;
+  const closeOverlay = (): void => {
+    overlayHost.style.display = 'none';
+    overlayChart?.el.remove();
+    overlayChart = null;
+  };
+  overlayHost.addEventListener('click', (e) => {
+    if (e.target === overlayHost) closeOverlay();
+  });
+  const openOverlay = (src: MiniChart): void => {
+    const snap = src.snapshot();
+    if (!snap) return;
+    closeOverlay();
+    const big = new MiniChart(snap.label, snap.unit, snap.color, 920, 420, snap.fmtV, true);
+    big.update(snap.data);
+    big.onHover = (x) => view.setCrosshair(x);
+    overlayHost.append(big.el);
+    overlayHost.style.display = 'flex';
+    overlayChart = big;
+  };
+  charts.shear.onExpand = () => openOverlay(charts.shear);
+  charts.moment.onExpand = () => openOverlay(charts.moment);
+  charts.deflect.onExpand = () => openOverlay(charts.deflect);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlayHost.style.display !== 'none') closeOverlay();
+  });
+
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
   // Status bar instrumen: metrik kunci selalu terlihat, sekalipun inspector ditutup.
@@ -161,6 +193,17 @@ async function main(): Promise<void> {
     scheduleSolve();
   };
   const panel = buildBeamPanel(params, () => scheduleSolve());
+  // Drag beban titik di 3D: proxy → params.loadAt, lalu solve (slider ikut via syncAll internal).
+  sm.dragProbe = {
+    object: view.dragProxyObject,
+    onDragStart: () => {},
+    onDragMove: (x) => {
+      if ((params.loadType ?? 'point') !== 'point') return;
+      params.loadAt = Math.min(Math.max(x, 0.1), params.span);
+      scheduleSolve();
+    },
+    onDragEnd: () => scheduleSolve(),
+  };
   // Tombol buka balik panel (di toolbar, hanya saat panel ditutup).
   const reopenBtn = document.createElement('button');
   reopenBtn.type = 'button';

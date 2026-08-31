@@ -255,6 +255,27 @@ body {
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Overlay expand chart — dblclick chart. Surface penuh, chart besar di tengah. */
+#chart-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  z-index: 40;
+}
+
+#chart-overlay .minichart {
+  width: min(920px, 92vw);
+  height: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: var(--sp-4);
+  cursor: crosshair;
+}
+
 .module-btn:focus-visible,
 button:focus-visible,
 [role='slider']:focus-visible {

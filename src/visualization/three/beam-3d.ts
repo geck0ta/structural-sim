@@ -105,6 +105,8 @@ export class BeamView {
   private readonly supports = new THREE.Group();
   private readonly crosshair!: THREE.Line;
   private readonly pin!: THREE.Mesh;
+  /** Proxy hit drag beban titik (invisible, mengikuti panah). */
+  private readonly dragProxy!: THREE.Mesh;
   /** Marker hover sinkron dari chart (garis vertikal + titik di beam). */
   private readonly beamMat: THREE.MeshStandardMaterial;
   private readonly propMat: THREE.MeshStandardMaterial;
@@ -143,6 +145,15 @@ export class BeamView {
     );
     this.pin.visible = false;
     this.scene.add(this.pin);
+
+    // Drag beban titik: proxy invisible (silinder tipis sepanjang tinggi panah, radius
+    // murah hati 0.28) — hit area jauh lebih besar dari panah kecil, tak menghalangi view.
+    this.dragProxy = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.28, 1.1, 8),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    this.dragProxy.visible = false;
+    this.group.add(this.dragProxy);
   }
 
   /** Crosshair 3D: x meter → garis vertikal accent di posisi hover chart. null = sembunyi. */
@@ -173,6 +184,11 @@ export class BeamView {
 
   get beamCenterY(): number {
     return this.centerY;
+  }
+
+  /** Proxy drag beban titik (invisible) — diekspos ke SceneManager via main. */
+  get dragProxyObject(): THREE.Object3D {
+    return this.dragProxy;
   }
 
   get supportHeight(): number {
@@ -325,8 +341,13 @@ export class BeamView {
       placeLoad(this.udlArrows[i]!, ((i + 0.5) / this.udlArrows.length) * this.span, showUdl);
     }
 
-    // Beban titik: 1 panah
-    placeLoad(this.loadArrow, Math.min(loadAt, this.span), show && loadType === 'point' && Math.abs(loadP) > 1);
+    // Beban titik: 1 panah + proxy drag mengikuti (posisi x sama, tinggi panah).
+    const pointOn = show && loadType === 'point' && Math.abs(loadP) > 1;
+    placeLoad(this.loadArrow, Math.min(loadAt, this.span), pointOn);
+    this.dragProxy.visible = pointOn;
+    if (pointOn) {
+      this.dragProxy.position.set(Math.min(loadAt, this.span), this.centerY + this.depth / 2 + 0.35, 0);
+    }
 
     if (moving && this.posAttr && this.mesh) {
       const pos = this.posAttr.array as Float32Array;

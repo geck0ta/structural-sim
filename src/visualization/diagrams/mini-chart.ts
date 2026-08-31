@@ -34,11 +34,13 @@ export class MiniChart {
   private readonly x0El: SVGTextElement | null;
   private readonly axisEl: SVGTextElement | null;
   private readonly fmtV: (v: number) => string;
+  private readonly unit: string;
   private readonly w: number;
   private readonly h: number;
 
   constructor(label: string, unit: string, color: string, w: number, h: number, fmtV: (v: number) => string, axisLabels = false) {
     this.fmtV = fmtV;
+    this.unit = unit;
     this.w = w;
     this.h = h;
     this.el = document.createElementNS(NS, 'svg');
@@ -190,6 +192,20 @@ export class MiniChart {
       const i = Math.min(Math.max(Math.round(((t - PAD) / (this.w - 2 * PAD)) * (this.data.length - 1)), 0), this.data.length - 1);
       this.onPin?.(this.data[i]!.x);
     });
+    // Expand: dblclick chart → overlay besar (detail + hover presisi). Esc/klik luar tutup (main.ts).
+    this.el.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      this.onExpand?.();
+    });
+  }
+
+  /** Callback expand overlay (dblclick) — main.ts yang membangun overlay. */
+  onExpand: (() => void) | null = null;
+
+  /** Clone state render terkini untuk overlay: data + formatter (read-only). */
+  snapshot(): { data: readonly ChartData[]; fmtV: (v: number) => string; label: string; unit: string; color: string } | null {
+    if (!this.data.length) return null;
+    return { data: this.data, fmtV: this.fmtV, label: this.el.getAttribute('aria-label') ?? '', unit: this.unit, color: this.plot.getAttribute('stroke') ?? '#888' };
   }
 
   private readonly plotGroup: SVGGElement;

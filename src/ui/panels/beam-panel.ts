@@ -298,6 +298,12 @@ export function buildBeamPanel(
   };
 
   const showResults = (sol: BeamSolution): void => {
+    // Slider posisi beban ikut saat drag langsung di 3D (nilai + handle).
+    if (posSlider) {
+      posSlider.slider.set(params.loadAt, false);
+      const vEl = posSlider.row.querySelector('.val');
+      if (vEl) vEl.textContent = fmtLength(params.loadAt);
+    }
     // P6: 2 headline sejajar grid — tinggi blok turun. P7: D/C jadi suffix baris SF.
     const headline = (label: string, value: string, warn = false): HTMLDivElement => {
       const d = document.createElement('div');
