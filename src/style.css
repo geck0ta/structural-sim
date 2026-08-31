@@ -187,26 +187,31 @@ body::after {
   right: 324px;
 }
 
-/* X di pojok panel (sticky atas-kanan dalam panel) */
+/* X tutup panel — fixed pojok kanan atas, DI ATAS panel, tak ikut scroll */
 .panel-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: fixed;
+  top: 20px;
+  right: 20px;
   width: 26px;
   height: 26px;
   border-radius: 8px;
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background: transparent;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
   border: none;
   color: var(--muted);
-  z-index: 2;
+  z-index: 12;
 }
 
 .panel-close:hover {
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
   color: var(--fg);
+}
+
+/* panel slide kanan saat ditutup */
+#panel {
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (max-width: 1200px) {

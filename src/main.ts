@@ -19,7 +19,12 @@ import { icon, ensureSprite } from './ui/glass/icons';
 const RINGS = 101;
 
 async function main(): Promise<void> {
-  await ensureSprite();
+  // Ikon bukan blocker: gagal fetch sprite (offline/adblock) → UI tetap jalan, ikon kosong.
+  try {
+    await ensureSprite();
+  } catch {
+    /* ikon opsional */
+  }
 
   const canvas = document.createElement('canvas');
   canvas.id = 'canvas3d';
@@ -148,14 +153,34 @@ async function main(): Promise<void> {
     scheduleSolve();
   };
   const panel = buildBeamPanel(params, () => scheduleSolve(), replay);
-  // Tombol tutup panel — panel balik via ikon sidebar (panelToggle).
+  // Tombol tutup panel — fixed di pojok (di ATAS panel, tak ikut scroll konten).
   const panelClose = document.createElement('button');
   panelClose.type = 'button';
   panelClose.className = 'panel-close';
   panelClose.setAttribute('aria-label', 'Tutup panel');
   panelClose.append(icon('x', 14));
-  panelClose.addEventListener('click', () => document.body.classList.remove('panel-open'));
-  panelHost.append(panelClose, panel.el);
+  panelClose.addEventListener('click', () => {
+    document.body.classList.remove('panel-open');
+    panelHost.style.transform = 'translateX(calc(100% + 24px))';
+    reopenBtn.style.display = '';
+  });
+  document.body.append(panelClose);
+  // Tombol buka balik panel (muncul hanya saat panel ditutup).
+  const reopenBtn = document.createElement('button');
+  reopenBtn.type = 'button';
+  reopenBtn.className = 'theme-float reopen';
+  reopenBtn.style.display = 'none';
+  reopenBtn.style.right = '12px';
+  reopenBtn.style.top = '14px';
+  reopenBtn.setAttribute('aria-label', 'Buka panel');
+  reopenBtn.append(icon('sliders-horizontal', 16));
+  reopenBtn.addEventListener('click', () => {
+    panelHost.style.transform = '';
+    reopenBtn.style.display = 'none';
+    document.body.classList.add('panel-open');
+  });
+  document.body.append(reopenBtn);
+  panelHost.append(panel.el);
   document.body.append(panelHost);
 
   // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
@@ -234,7 +259,7 @@ async function main(): Promise<void> {
   // ===== Toggle tema — tombol floating pojok kanan atas viewport (bukan di sidebar) =====
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
-  themeBtn.className = 'ghost-btn theme-float';
+  themeBtn.className = 'theme-float';
   themeBtn.setAttribute('aria-label', 'Ganti tema terang/gelap');
   themeBtn.append(icon('sun-moon', 18));
   const applyTheme = (light: boolean): void => {
@@ -260,7 +285,7 @@ async function main(): Promise<void> {
   // Tombol reset view (floating, sebelah tema) — kamera balik fit default.
   const resetBtn = document.createElement('button');
   resetBtn.type = 'button';
-  resetBtn.className = 'ghost-btn theme-float';
+  resetBtn.className = 'theme-float';
   resetBtn.style.right = 'calc(324px + 42px)';
   resetBtn.setAttribute('aria-label', 'Reset tampilan kamera (R)');
   resetBtn.title = 'Reset tampilan (R)';
@@ -295,7 +320,7 @@ async function main(): Promise<void> {
   // F12: export viewport → PNG (tombol floating, sebelah reset).
   const shotBtn = document.createElement('button');
   shotBtn.type = 'button';
-  shotBtn.className = 'ghost-btn theme-float';
+  shotBtn.className = 'theme-float';
   shotBtn.style.right = 'calc(324px + 84px)';
   shotBtn.setAttribute('aria-label', 'Simpan tangkapan viewport PNG');
   shotBtn.title = 'Simpan PNG';
@@ -314,7 +339,7 @@ async function main(): Promise<void> {
   // F13b: tombol share — URL state ke clipboard (toast konfirmasi).
   const shareBtn = document.createElement('button');
   shareBtn.type = 'button';
-  shareBtn.className = 'ghost-btn theme-float';
+  shareBtn.className = 'theme-float';
   shareBtn.style.right = 'calc(324px + 126px)';
   shareBtn.setAttribute('aria-label', 'Salin link bagikan');
   shareBtn.title = 'Salin link';
