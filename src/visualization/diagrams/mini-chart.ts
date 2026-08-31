@@ -267,7 +267,7 @@ export class MiniChart {
     const peak = d[peakI]!;
     this.peakEl.setAttribute('x', String(Math.min(Math.max(px(peakI), 18), this.w - 18)));
     this.peakEl.setAttribute('y', String(Math.max(py(peak.v) - 5, 10)));
-    this.peakEl.textContent = peak.v.toPrecision(3);
+    this.peakEl.textContent = this.fmtV(peak.v); // instrumen: "41.4 kN·m", bukan "4.14e+4"
 
     if (this.hoverI >= 0 && this.hoverI < n) {
       const p = d[this.hoverI]!;
