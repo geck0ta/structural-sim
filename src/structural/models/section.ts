@@ -1,4 +1,4 @@
-import type { CircularDims, IDims, RectDims, Section, SectionProps } from './types';
+import type { CDims, CircularDims, IDims, RectDims, Section, SectionProps } from './types';
 
 // §6 — properti dihitung dari dimensi (mm basis), bukan tabel hardcoded.
 // sumber rumus: Gere & Timoshenko, Mechanics of Materials.
@@ -38,12 +38,27 @@ export function circularProps({ d, t }: CircularDims): SectionProps {
   return finalize((PI * d ** 2) / 4, I, I, (PI * d ** 4) / 32, d / 2, d / 2);
 }
 
+export function cProps({ h, b, tw, tf }: CDims): SectionProps {
+  // Channel (Gere & Timoshenko A.5). Web vertikal; flange bersih bf = b − tw (web tak dobel).
+  // Verifikasi UPN200: A=32.3 cm², Iy=1927 cm⁴, Iz=117 cm⁴, x̄≈22.0 mm — cocok tabel.
+  const bf = b - tw;
+  const A = h * tw + 2 * bf * tf;
+  const xbar = (h * tw * (tw / 2) + 2 * bf * tf * (tw + bf / 2)) / A; // dari muka luar web
+  const Iy = (tw * h ** 3) / 12 + 2 * ((bf * tf ** 3) / 12 + bf * tf * ((h - tf) / 2) ** 2); // sumbu kuat
+  const Iz = (h * tw ** 3) / 12 + 2 * ((tf * bf ** 3) / 12 + bf * tf * (tw + bf / 2 - xbar) ** 2); // sumbu lemah
+  const hw = h - 2 * tf;
+  const cz = Math.max(xbar, b - xbar);
+  return finalize(A, Iy, Iz, (2 * bf * tf ** 3 + hw * tw ** 3) / 3, h / 2, cz);
+}
+
 export function sectionProps(section: Section): SectionProps {
   switch (section.shape) {
     case 'rect':
       return rectProps(section.dims);
     case 'i':
       return iProps(section.dims);
+    case 'c':
+      return cProps(section.dims);
     case 'circular':
       return circularProps(section.dims as CircularDims);
   }
@@ -79,14 +94,21 @@ export const RECT_300_600 = {
 
 export const CHS_219_8 = {
   id: 'chs219x8',
-  name: 'CHS Ø219×8 (tubular)',
+  name: 'CHS Ø219×8',
   shape: 'circular',
   dims: { d: 219, t: 8 },
 } as const;
 
-function build(base: typeof IPE300 | typeof WF400 | typeof RECT_300_600 | typeof CHS_219_8): Section {
+export const UPN200 = {
+  id: 'upn200',
+  name: 'UPN 200 (C)',
+  shape: 'c',
+  dims: { h: 200, b: 75, tw: 8.5, tf: 11.5 },
+} as const;
+
+function build(base: typeof IPE300 | typeof WF400 | typeof RECT_300_600 | typeof CHS_219_8 | typeof UPN200): Section {
   const s = base as Section; // props dihitung, bukan dari tabel
   return { ...s, props: sectionProps(s) };
 }
 
-export const SECTION_PRESETS: readonly Section[] = [build(IPE300), build(WF400), build(RECT_300_600), build(CHS_219_8)];
+export const SECTION_PRESETS: readonly Section[] = [build(IPE300), build(WF400), build(RECT_300_600), build(CHS_219_8), build(UPN200)];

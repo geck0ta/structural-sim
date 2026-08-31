@@ -78,6 +78,19 @@ export function profilePoints(s: Section): THREE.Vector2[] {
       }
       return pts;
     }
+    case 'c': {
+      // Channel: web vertikal di x=0 muka, flange menjorok ke satu arah (+u).
+      const { h, b, tw, tf } = s.dims;
+      const p: [number, number][] = [
+        [0, -h / 2], [b, -h / 2], [b, -h / 2 + tf], [tw, -h / 2 + tf],
+        [tw, h / 2 - tf], [b, h / 2 - tf], [b, h / 2], [0, h / 2],
+      ];
+      // pusatkan: geser −xbar (dari muka web, formula sama dgn cProps) agar centroid di origin
+      const bf = b - tw;
+      const A = h * tw + 2 * bf * tf;
+      const xbar = (h * tw * (tw / 2) + 2 * bf * tf * (tw + bf / 2)) / A;
+      return p.map(([u, v]) => new THREE.Vector2(m(u - xbar), m(v)));
+    }
     case 'i': {
       const { h, b, tw, tf } = s.dims;
       const p: [number, number][] = [
@@ -94,7 +107,8 @@ export interface DeformOpts {
   readonly scale: number; // faktor perbesaran defleksi
   readonly loadAt: number; // m
   readonly loadP: number; // N
-  readonly loadType: 'point' | 'udl';
+  readonly loadType: 'point' | 'two' | 'udl';
+  readonly span: number; // untuk mirror beban kedua pada mode 'two'
   readonly support: BeamSupport;
   readonly reactions: { readonly Ra: number; readonly Rb: number; readonly Ma: number };
 }
@@ -115,7 +129,8 @@ export class BeamView {
   private centerY = SUPPORT_H;
   private depth = 0.3;
   private width = 0.2;
-  readonly loadArrow: ForceArrow;
+  private loadArrow: ForceArrow;
+  private loadArrow2: ForceArrow; // beban kedua mode 'two' (cermin L−a)
   private readonly reactA: ForceArrow;
   private readonly reactB: ForceArrow;
   private readonly udlArrows: ForceArrow[] = [];
@@ -132,9 +147,10 @@ export class BeamView {
     this.beamMat = beamMaterial ?? new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.45, metalness: 0.7 });
     this.propMat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.8, metalness: 0.2 });
     this.loadArrow = new ForceArrow(0xff453a, 0.5);
+    this.loadArrow2 = new ForceArrow(0xff453a, 0.5);
     this.reactA = new ForceArrow(0xffd60a, 0.3);
     this.reactB = new ForceArrow(0xffd60a, 0.3);
-    this.group.add(this.loadArrow.group, this.reactA.group, this.reactB.group, this.supports);
+    this.group.add(this.loadArrow.group, this.loadArrow2.group, this.reactA.group, this.reactB.group, this.supports);
     for (let i = 0; i < 8; i++) {
       const a = new ForceArrow(0xff453a, 0.32);
       this.udlArrows.push(a);
@@ -368,10 +384,14 @@ export class BeamView {
     }
 
     // Beban titik: 1 panah + proxy drag mengikuti (posisi x sama, tinggi panah).
-    const pointOn = show && loadType === 'point' && Math.abs(loadP) > 1;
-    placeLoad(this.loadArrow, Math.min(loadAt, this.span), pointOn);
-    this.dragProxy.visible = pointOn;
-    if (pointOn) {
+    // Mode 'two': dua panah identik di a dan L−a (a di-clamp ≤ L/2).
+    const a1 = loadType === 'two' ? Math.min(loadAt, o.span / 2) : Math.min(loadAt, this.span);
+    const a2 = this.span - a1;
+    const pointOn = show && loadType !== 'udl' && Math.abs(loadP) > 1;
+    placeLoad(this.loadArrow, a1, pointOn);
+    placeLoad(this.loadArrow2, a2, pointOn && loadType === 'two');
+    this.dragProxy.visible = show && loadType === 'point' && Math.abs(loadP) > 1;
+    if (pointOn && loadType === 'point') {
       this.dragProxy.position.set(Math.min(loadAt, this.span), this.centerY + this.depth / 2 + 0.35, 0);
     }
 

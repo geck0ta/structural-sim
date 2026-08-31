@@ -19,9 +19,9 @@ export interface BeamParams {
   materialId: string;
   sectionId: string;
   support: 'cantilever' | 'ss';
-  loadType: 'point' | 'udl';
+  loadType: 'point' | 'two' | 'udl';
   /** Kasus preset aktif — sinkron dengan loadType/support agar judul tak konflik. */
-  presetId: 'cantilever' | 'bridge' | 'udl';
+  presetId: 'cantilever' | 'bridge' | 'udl' | 'two';
   deformScale: number;
 }
 
@@ -44,7 +44,8 @@ export function buildBeamPanel(
   const presets = [
     { id: 'cantilever', label: 'Kantilever, beban terpusat di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; params.presetId = 'cantilever'; } },
     { id: 'bridge', label: 'Balok sederhana, beban terpusat di tengah bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; params.presetId = 'bridge'; } },
-    { id: 'udl', label: 'Balok sederhana, beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadW = 15e3; params.loadType = 'udl'; params.presetId = 'udl'; } },
+    { id: 'udl', label: 'Beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadW = 15e3; params.loadType = 'udl'; params.presetId = 'udl'; } },
+    { id: 'two', label: 'Dua beban terpusat, simetris', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 8 / 3; params.loadType = 'two'; params.presetId = 'two'; } },
   ];
   const presetPicker = new IOSPicker(
     presets.map((p) => ({ id: p.id, label: p.label })),
@@ -169,15 +170,17 @@ export function buildBeamPanel(
   const loadTypeLabel = document.createElement('div');
   loadTypeLabel.className = 'param-label';
   loadTypeLabel.textContent = 'Tipe beban';
-  const applyLoadType = (v: 'point' | 'udl'): void => {
+  const applyLoadType = (v: 'point' | 'two' | 'udl'): void => {
     params.loadType = v;
-    loadRow.row.style.display = v === 'point' ? '' : 'none';
+    loadRow.row.style.display = v === 'udl' ? 'none' : '';
     loadWRow.row.style.display = v === 'udl' ? '' : 'none';
-    posSlider.row.style.display = v === 'point' ? '' : 'none';
+    posSlider.row.style.display = v === 'udl' ? 'none' : '';
+  posSlider.row.querySelector('.lab')!.textContent = v === 'two' ? 'Posisi beban P1 (P2 = L − a)' : 'Posisi beban a';
   };
   const loadTypeSeg = new SegmentedControl(
     [
       { value: 'point', label: 'Titik' },
+      { value: 'two', label: '2 Titik' },
       { value: 'udl', label: 'Merata' },
     ],
     params.loadType ?? 'point',

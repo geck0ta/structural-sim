@@ -26,6 +26,13 @@ export interface CircularDims {
   readonly t?: number; // ketebalan dinding mm — ada = hollow (CHS), tidak = rod solid
 }
 
+export interface CDims {
+  readonly h: number; // mm
+  readonly b: number; // mm (flange, satu sisi)
+  readonly tw: number; // web mm
+  readonly tf: number; // flange mm
+}
+
 export interface SectionProps {
   readonly A: number; // mm²
   readonly Iy: number; // mm⁴ (strong axis)
@@ -40,6 +47,7 @@ export interface SectionProps {
 export type Section =
   | { readonly id: string; readonly name: string; readonly shape: 'rect'; readonly dims: RectDims; readonly props: SectionProps }
   | { readonly id: string; readonly name: string; readonly shape: 'i'; readonly dims: IDims; readonly props: SectionProps }
+  | { readonly id: string; readonly name: string; readonly shape: 'c'; readonly dims: CDims; readonly props: SectionProps }
   | { readonly id: string; readonly name: string; readonly shape: 'circular'; readonly dims: CircularDims; readonly props: SectionProps };
 
 export type SectionShape = Section['shape'];

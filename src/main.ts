@@ -76,12 +76,12 @@ async function main(): Promise<void> {
       if (saved.materialId && MATERIALS[saved.materialId]) params.materialId = saved.materialId;
       if (saved.sectionId && SECTION_PRESETS.some((s) => s.id === saved.sectionId)) params.sectionId = saved.sectionId;
       if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
-      if (saved.loadType === 'point' || saved.loadType === 'udl') {
+      if (saved.loadType === 'point' || saved.loadType === 'two' || saved.loadType === 'udl') {
         params.loadType = saved.loadType;
         // Judul preset & picker mengikuti state tersimpan — tanpa konflik "P di ujung" saat udl.
         if (saved.loadType === 'udl') params.presetId = 'udl';
       }
-      if (saved.presetId && ['cantilever', 'bridge', 'udl'].includes(saved.presetId)) params.presetId = saved.presetId;
+      if (saved.presetId && ['cantilever', 'bridge', 'udl', 'two'].includes(saved.presetId)) params.presetId = saved.presetId;
     }
   } catch { /* default */ }
   // F13: URL params menang atas localStorage — state shareable (?span=8&p=30&at=4…).
@@ -95,9 +95,10 @@ async function main(): Promise<void> {
     const mat = q.get('mat'); if (mat && MATERIALS[mat]) params.materialId = mat;
     const sec = q.get('sec'); if (sec && SECTION_PRESETS.some((s) => s.id === sec)) params.sectionId = sec;
     const sup = q.get('sup'); if (sup === 'ss' || sup === 'cantilever') params.support = sup;
-    const lt = q.get('lt'); if (lt === 'point' || lt === 'udl') params.loadType = lt;
+    const lt = q.get('lt'); if (lt === 'point' || lt === 'two' || lt === 'udl') params.loadType = lt;
     if (params.support === 'cantilever') params.loadAt = params.span;
     if (params.loadType === 'udl' && params.support === 'ss') params.presetId = 'udl';
+    if (params.loadType === 'two' && params.support === 'ss') params.presetId = 'two';
     if (params.loadType === 'point' && params.support === 'ss') params.presetId = 'bridge';
     if (params.loadType === 'point' && params.support === 'cantilever') params.presetId = 'cantilever';
   } catch { /* default */ }
@@ -321,6 +322,12 @@ async function main(): Promise<void> {
     const loads: BeamLoad[] = [];
     if (params.loadType === 'udl') {
       if (params.loadW > 0) loads.push({ type: 'udl', value: params.loadW, from: 0, to: params.span });
+    } else if (params.loadType === 'two') {
+      const a = Math.min(params.loadAt, params.span / 2);
+      if (params.loadP > 0) {
+        loads.push({ type: 'point', value: params.loadP, at: a });
+        loads.push({ type: 'point', value: params.loadP, at: params.span - a });
+      }
     } else if (params.loadP > 0) {
       loads.push({ type: 'point', value: params.loadP, at: params.loadAt });
     }
@@ -413,6 +420,7 @@ async function main(): Promise<void> {
       loadAt: params.loadAt,
       loadP: params.loadP,
       loadType: params.loadType ?? 'point',
+      span: params.span,
       support: params.support,
       reactions: currentSol?.reactions ?? { Ra: 0, Rb: 0, Ma: 0 },
     });

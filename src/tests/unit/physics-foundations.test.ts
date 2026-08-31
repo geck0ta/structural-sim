@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SpringNumber } from '../../visualization/animation/spring';
-import { rectProps, iProps, circularProps, SECTION_PRESETS } from '../../structural/models/section';
+import { rectProps, iProps, circularProps, cProps, SECTION_PRESETS } from '../../structural/models/section';
+import { solveBeam } from '../../structural/beam/beam-solver';
 
 describe('SpringNumber', () => {
   it('converge ke target, tak overshoot besar (settled akhirnya)', () => {
@@ -28,6 +29,38 @@ describe('section props (§6 — dihitung, bukan tabel)', () => {
     const p = rectProps({ b: 300, h: 600 });
     expect(p.A).toBeCloseTo(180000, 5);
     expect(p.Iy).toBeCloseTo((300 * 600 ** 3) / 12, 0);
+  });
+
+  it('SS two-point symmetric a=L/3: M mid = P·a, y mid = P·a(3L²−4a²)/24EI', () => {
+    const EI = 1e6; // N·m²
+    const L = 6, P = 10e3, a = 2; // m, N
+    const dims = { b: 100, h: 200 } as const;
+    const base = { id: 't', name: 't', shape: 'rect', dims } as const;
+    const sec = { ...base, props: rectProps(dims) };
+    const mat = { name: 't', elasticModulus: EI / (sec.props.Iy * 1e-12), density: 0, poissonRatio: 0.3, yieldStrength: 1e9, thermalExpansion: 0, color: 0, source: 't' };
+    const sol = solveBeam({
+      span: L,
+      support: 'ss',
+      loads: [
+        { type: 'point', value: P, at: a },
+        { type: 'point', value: P, at: L - a },
+      ],
+      section: sec,
+      material: mat,
+    });
+    expect(sol.reactions.Ra).toBeCloseTo(P, 0);
+    expect(sol.maxMoment.value).toBeCloseTo(P * a, 1); // M konstan P·a antara beban
+    // y mid (pure bending antara beban): y = Pa(3L²−4a²)/24EI
+    const yMid = (P * a * (3 * L ** 2 - 4 * a ** 2)) / (24 * EI);
+    expect(sol.at(L / 2).y).toBeCloseTo(-yMid, 5);
+  });
+
+  it('UPN200 vs tabel: A=32.2, Iy≈1910 (fillet −0.9%), Iz=116, Wx=191 (cm, satuan konsisten)', () => {
+    const p = cProps({ h: 200, b: 75, tw: 8.5, tf: 11.5 });
+    expect(p.A / 100).toBeCloseTo(32.2, 0); // cm² — 32.30 hitung, 32.2 tabel
+    expect(Math.abs(p.Iy / 1e4 - 1910) / 1910).toBeLessThan(0.01); // dev <1% — fillet akar diabaikan (konvensi iProps)
+    expect(p.Iz / 1e4).toBeCloseTo(117, 0); // cm⁴ — hitung 116.99, tabel 116
+    expect(p.Sy / 1e3).toBeCloseTo(193, 0); // cm³ — hitung 192.7 (Iy tanpa fillet / cy), tabel 191
   });
 
   it('circular d=100: I = πd⁴/64', () => {

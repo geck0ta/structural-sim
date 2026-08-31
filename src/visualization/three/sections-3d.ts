@@ -20,6 +20,21 @@ export function sectionShape(section: Section): THREE.Shape {
     case 'circular': {
       return new THREE.Shape().absarc(0, 0, s(section.dims.d / 2), 0, Math.PI * 2, false);
     }
+    case 'c': {
+      // Channel: web vertikal (muka kiri), flange menjorok ke kanan — C terbuka ke +x.
+      const { h, b, tw, tf } = section.dims;
+      const w = new THREE.Shape();
+      w.moveTo(-s(b / 2), -s(h / 2));
+      w.lineTo(s(b / 2), -s(h / 2));
+      w.lineTo(s(b / 2), -s(h / 2) + s(tf));
+      w.lineTo(-s(b / 2) + s(tw), -s(h / 2) + s(tf));
+      w.lineTo(-s(b / 2) + s(tw), s(h / 2) - s(tf));
+      w.lineTo(s(b / 2), s(h / 2) - s(tf));
+      w.lineTo(s(b / 2), s(h / 2));
+      w.lineTo(-s(b / 2), s(h / 2));
+      w.closePath();
+      return w;
+    }
     case 'i': {
       const { h, b, tw, tf } = section.dims;
       // profil I: 12 titik keliling, CCW dari kiri-bawah flange bawah
