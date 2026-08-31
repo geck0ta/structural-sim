@@ -26,24 +26,15 @@ export interface BeamPanel {
   readonly getParams: () => BeamParams;
   readonly showResults: (sol: BeamSolution) => void;
   readonly setMode: (m: 'explore' | 'explain') => void;
-  readonly replayBtn: HTMLButtonElement;
-  readonly setReplayState: (playing: boolean) => void;
   readonly mathRow: HTMLDivElement;
 }
 
 export function buildBeamPanel(
   params: BeamParams,
   onChange: () => void,
-  onReplay: () => void,
 ): BeamPanel {
   const root = document.createElement('div');
-
-  const h = document.createElement('h2');
-  h.textContent = 'Lab Balok 3D';
-  const cap = document.createElement('p');
-  cap.className = 'caption';
-  cap.textContent = 'Geser slider — 3D, diagram, dan angka berubah bersamaan.';
-  root.append(h, cap);
+  // Polos: tanpa judul/caption — inspector bicara lewat section, bukan heading.
   // Preset kasus umum → satu picker "Contoh kasus" (declutter: bukan 3 chip wrap)
   const onChipClick: Array<() => void> = [];
   const presets = [
@@ -216,21 +207,7 @@ export function buildBeamPanel(
   pickGrid.append(matPicker.el, secPicker.el);
   root.append(pickGrid);
 
-  // Tombol replay: ikon kompak "Ulang" (P4 — bukan 1 baris penuh)
-  const replayBtn = document.createElement('button');
-  replayBtn.type = 'button';
-  replayBtn.className = 'replay-btn';
-  const rIcon = icon('rotate-ccw', 14);
-  const rl = document.createElement('span');
-  rl.textContent = 'Ulang';
-  replayBtn.append(rIcon, rl);
-  replayBtn.addEventListener('click', () => onReplay());
-  /** Morph ikon+label replay↔pause (dipanggil main.ts saat animasi mulai/berhenti). */
-  const setReplayState = (playing: boolean): void => {
-    rIcon.replaceWith(icon(playing ? 'pause' : 'rotate-ccw', 14));
-    rl.textContent = playing ? 'Jeda' : 'Ulang';
-  };
-  root.append(replayBtn);
+  // Replay dihapus dari panel (keputusan redesign) — Space tetap jalan dari main.ts.
 
   // Blok hasil (skeleton shimmer sampai solve pertama selesai)
   const resultDiv = document.createElement('div');
@@ -349,7 +326,7 @@ export function buildBeamPanel(
     modeSeg.select(m);
   };
 
-  return { el: root, getParams: () => params, showResults, setMode, replayBtn, setReplayState, mathRow };
+  return { el: root, getParams: () => params, showResults, setMode, mathRow };
 }
 
 function step(formula: string, detail: string): HTMLDivElement {

@@ -1,26 +1,65 @@
-/* §14 — iPhone-class glass. Dark glass LEBIH SOLID & tenang. Angka = tabular-nums. */
+/* Design tokens — engineering instrument. Spacing 4-base, satu tinggi kontrol,
+   teks 3 ukuran, surface semantik. Accent = satu-satunya warna aksi. */
 
 :root {
-  --bg: #0d0f12;
-  --fg: #f5f5f7;
-  --muted: #98a0a8;
-  --accent: #0a84ff;
-  --border: rgba(255, 255, 255, 0.06); /* P11: lebih redup — kaca, bukan kotak */
-  --glass-bg: rgba(22, 25, 29, 0.78);
-  --glass-blur: 18px;
-  --radius: 14px;
+  /* surface */
+  --bg: #101215;
+  --surface: rgba(28, 31, 35, 0.92);
+  --surface-2: rgba(38, 42, 47, 0.9);
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #e8eaed;
+  --text-2: #9aa1a9;
+  --text-3: #6b727b;
+  --accent: #4a9eff;
+  --danger: #ff5d55;
+  --warn: #ffb340;
+  --ok: #32ad62;
+
+  /* spacing scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* components */
+  --h-ctl: 32px;      /* semua kontrol: tombol, picker, slider row */
+  --h-toolbar: 44px;
+  --h-status: 30px;
+  --r-ctl: 8px;
+  --r-panel: 10px;
+  --w-rail: 48px;
+  --w-rail-open: 200px;
+  --w-inspector: 300px;
+
+  /* typography */
+  --text-1: 13px;   /* body/value */
+  --text-2: 11.5px; /* label */
+  --text-3: 10px;   /* micro/section title */
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --bg: #f5f5f7;
-  --fg: #1d1d1f;
-  --muted: rgba(60, 60, 67, 0.72);
-  --accent: #007aff;
-  --border: rgba(0, 0, 0, 0.08);
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-blur: 24px;
+  --bg: #eceef0;
+  --surface: rgba(252, 252, 253, 0.94);
+  --surface-2: rgba(240, 241, 243, 0.92);
+  --border: rgba(0, 0, 0, 0.09);
+  --text: #1a1c1f;
+  --text-2: #55595f;
+  --text-3: #8a8f96;
+  --accent: #0a6ce8;
   color-scheme: light;
+}
+
+/* legacy alias — dihapus saat fase 3 menyapu semua rule */
+:root {
+  --fg: var(--text);
+  --muted: var(--text-2);
+  --glass-bg: var(--surface);
+  --glass-blur: 14px;
+  --radius: var(--r-panel);
 }
 
 * {
@@ -92,11 +131,11 @@ body::after {
   top: 12px;
   left: 12px;
   bottom: 12px;
-  width: 196px;
+  width: var(--w-rail);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
   z-index: 10;
 }
 
@@ -399,7 +438,6 @@ button:focus-visible,
   font-size: 11px;
   color: var(--muted);
 }
-
 .param-row {
   display: flex;
   flex-direction: column;
@@ -725,33 +763,6 @@ button:focus-visible,
 }
 
 /* ===== PHASE 3: Beam Lab ===== */
-
-.replay-btn {
-  all: unset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 12px;
-  margin: 4px 0 2px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--fg);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-radius: 9px;
-  cursor: pointer;
-  transition: background 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.replay-btn:hover {
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.replay-btn:active {
-  transform: scale(0.97);
-}
 
 .param-label {
   font-size: 10px;

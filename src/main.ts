@@ -152,7 +152,7 @@ async function main(): Promise<void> {
     anim.setFactor(0, 1); // replay ramp beban 0→penuh
     scheduleSolve();
   };
-  const panel = buildBeamPanel(params, () => scheduleSolve(), replay);
+  const panel = buildBeamPanel(params, () => scheduleSolve());
   // Tombol tutup panel — fixed di pojok (di ATAS panel, tak ikut scroll konten).
   const panelClose = document.createElement('button');
   panelClose.type = 'button';
@@ -204,48 +204,19 @@ async function main(): Promise<void> {
   skip.textContent = 'Lompat ke panel parameter';
   document.body.append(skip);
 
-  // ===== Sidebar (declutter: modul belum siap = SATU baris hint, bukan 5 tombol redup) =====
-  const MODULES = [
-    { id: 'mech', label: 'Mekanika Struktur', icon: 'ruler', ready: true },
-  ] as const;
-  const SOON = 'FEM · Gempa · Beban · Model 3D — segera';
-
+  // ===== Sidebar rail 48px — polos: ikon saja, tanpa brand/teks mati =====
   const sidebar = document.createElement('aside');
   sidebar.id = 'sidebar';
   sidebar.className = 'glass';
-  const brand = document.createElement('div');
-  brand.className = 'brand';
-  brand.append(icon('landmark', 18));
-  const bt = document.createElement('span');
-  bt.textContent = 'Structural Lab';
-  brand.append(bt);
   const nav = document.createElement('nav');
-  for (const m of MODULES) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'module-btn';
-    if (!m.ready) {
-      btn.setAttribute('aria-disabled', 'true'); // tetap klikable → toast, bukan dead zone
-    }
-    btn.append(icon(m.icon, 18));
-    const bs = document.createElement('span');
-    bs.textContent = m.label;
-    btn.append(bs);
-    btn.setAttribute('aria-current', String(m.id === 'mech'));
-    if (m.ready) {
-      btn.addEventListener('click', () => {
-        nav.querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', 'false'));
-        btn.setAttribute('aria-current', 'true');
-      });
-    }
-    nav.append(btn);
-  }
-  // Hint modul mendatang — satu baris muted, bukan 5 tombol disabled
-  const soon = document.createElement('div');
-  soon.className = 'sidebar-soon';
-  soon.textContent = SOON;
-  nav.append(soon);
-  sidebar.append(brand, nav);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'module-btn';
+  btn.setAttribute('aria-label', 'Mekanika Struktur');
+  btn.append(icon('ruler', 18));
+  btn.setAttribute('aria-current', 'true');
+  nav.append(btn);
+  sidebar.append(nav);
 
   // Toggle panel (mobile only — CSS sembunyikan di desktop)
   const panelToggle = document.createElement('button');
@@ -457,7 +428,6 @@ async function main(): Promise<void> {
       view.setBeam(section(), params.span, params.support);
     }
     const moving = anim.step(dt);
-    panel.setReplayState(moving);
     if (!moving && !visualDirty) return; // diam total → skip rebuild chart/ribbon (anti-lag, tak ubah visual)
     visualDirty = true;
     view.updateDeform(anim, moving || solveScheduled, {
