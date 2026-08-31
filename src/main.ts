@@ -70,7 +70,20 @@ async function main(): Promise<void> {
       if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
       if (saved.loadType === 'point' || saved.loadType === 'udl') params.loadType = saved.loadType;
     }
-  } catch { /* data korup → default */ }
+  } catch { /* default */ }
+  // F13: URL params menang atas localStorage — state shareable (?span=8&p=30&at=4…).
+  try {
+    const q = new URLSearchParams(location.search);
+    const qs = (k: string): number | null => { const v = Number.parseFloat(q.get(k) ?? ''); return Number.isFinite(v) ? v : null; };
+    const span = qs('span'); if (span !== null && span > 0) params.span = span;
+    const p = qs('p'); if (p !== null) params.loadP = Math.max(0, p) * 1000;
+    const at = qs('at'); if (at !== null) params.loadAt = Math.min(Math.max(at, 0), params.span);
+    const mat = q.get('mat'); if (mat && MATERIALS[mat]) params.materialId = mat;
+    const sec = q.get('sec'); if (sec && SECTION_PRESETS.some((s) => s.id === sec)) params.sectionId = sec;
+    const sup = q.get('sup'); if (sup === 'ss' || sup === 'cantilever') params.support = sup;
+    const lt = q.get('lt'); if (lt === 'point' || lt === 'udl') params.loadType = lt;
+    if (params.support === 'cantilever') params.loadAt = params.span;
+  } catch { /* default */ }
 
   let themeLight = false;
 
@@ -291,6 +304,31 @@ async function main(): Promise<void> {
     a.click();
   });
   document.body.append(shotBtn);
+  // F13b: tombol share — URL state ke clipboard (toast konfirmasi).
+  const shareBtn = document.createElement('button');
+  shareBtn.type = 'button';
+  shareBtn.className = 'ghost-btn theme-float';
+  shareBtn.style.right = 'calc(324px + 126px)';
+  shareBtn.setAttribute('aria-label', 'Salin link bagikan');
+  shareBtn.title = 'Salin link';
+  shareBtn.append(icon('share-2', 18));
+  shareBtn.addEventListener('click', async () => {
+    const q = new URLSearchParams({
+      span: String(params.span),
+      p: String(params.loadP / 1000),
+      mat: params.materialId,
+      sec: params.sectionId,
+      sup: params.support,
+      lt: params.loadType,
+    });
+    if (params.loadType === 'point') q.set('at', String(params.loadAt));
+    try {
+      await navigator.clipboard.writeText(`${location.origin}${location.pathname}?${q}`);
+      showToast('Link disalin ke clipboard');
+    } catch { /* clipboard diblokir */ }
+  });
+  document.body.append(shareBtn);
+
   const killHint = (): void => {
     hint.classList.add('hide');
     document.getElementById('canvas3d')?.removeEventListener('pointerdown', killHint);
