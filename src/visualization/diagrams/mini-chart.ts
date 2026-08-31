@@ -20,6 +20,12 @@ export class MiniChart {
   onPin: ((x: number | null) => void) | null = null;
   private data: readonly ChartData[] = [];
   private hoverI = -1;
+  // Zoom: domain fraksi [xr0,xr1] atas data (0..1), 1 = penuh. Wheel = zoom di kursor,
+  // drag = pan, dblclick = reset. Skala-Y selalu dari irisan terlihat.
+  private xr0 = 0;
+  private xr1 = 1;
+  private dragX: number | null = null;
+  private dragMoved = false;
   private readonly grad: SVGLinearGradientElement;
   private readonly fill: SVGPathElement;
   private readonly zero: SVGLineElement;
@@ -184,11 +190,53 @@ export class MiniChart {
     this.el.addEventListener('pointerleave', () => this.setHover(-1));
     // F1: klik → pin marker 3D persist (toggle di main.ts).
     this.el.addEventListener('click', (e) => {
-      if (!this.data.length) return;
+      if (!this.data.length || this.dragMoved) return;
       const r = this.el.getBoundingClientRect();
       const t = ((e.clientX - r.left) / r.width) * this.w;
       const i = Math.min(Math.max(Math.round(((t - PAD) / (this.w - 2 * PAD)) * (this.data.length - 1)), 0), this.data.length - 1);
       this.onPin?.(this.data[i]!.x);
+    });
+
+    // Zoom wheel — pusat di kursor; clamp lebar min 2% (~2 sampel), maks penuh.
+    this.el.addEventListener('wheel', (e) => {
+      if (!this.data.length) return;
+      e.preventDefault();
+      const r = this.el.getBoundingClientRect();
+      const f = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+      const fDom = this.xr0 + f * (this.xr1 - this.xr0);
+      let w0 = Math.min((this.xr1 - this.xr0) * Math.exp(e.deltaY * 0.0012), 1);
+      if (w0 < 0.02) w0 = 0.02;
+      this.xr0 = Math.max(0, fDom - f * w0);
+      this.xr1 = Math.min(1, this.xr0 + w0);
+      if (this.xr1 - this.xr0 < w0) this.xr0 = 1 - w0;
+      this.render();
+    }, { passive: false });
+
+    // Drag pan — pointerdown menangkap; gerak >3px = pan, bukan klik-pin.
+    this.el.addEventListener('pointerdown', (e) => {
+      this.dragX = e.clientX;
+      this.dragMoved = false;
+      this.el.setPointerCapture(e.pointerId);
+    });
+    this.el.addEventListener('pointermove', (e) => {
+      if (this.dragX === null) return;
+      const dx = e.clientX - this.dragX;
+      if (Math.abs(dx) > 3) this.dragMoved = true;
+      if (!this.dragMoved || !this.data.length) return;
+      this.dragX = e.clientX;
+      const wDom = this.xr1 - this.xr0;
+      const shift = (dx / this.el.getBoundingClientRect().width) * wDom;
+      this.xr0 = Math.min(Math.max(this.xr0 - shift, 0), 1 - wDom);
+      this.xr1 = this.xr0 + wDom;
+      this.render();
+    });
+    const endDrag = (): void => { this.dragX = null; };
+    this.el.addEventListener('pointerup', endDrag);
+    this.el.addEventListener('pointercancel', endDrag);
+    this.el.addEventListener('dblclick', () => {
+      this.xr0 = 0;
+      this.xr1 = 1;
+      this.render();
     });
   }
 
@@ -198,7 +246,8 @@ export class MiniChart {
     if (!this.data.length) return;
     const r = this.el.getBoundingClientRect();
     const t = ((e.clientX - r.left) / r.width) * this.w;
-    const i = Math.round(((t - PAD) / (this.w - 2 * PAD)) * (this.data.length - 1));
+    const xf = this.xr0 + (Math.min(Math.max((t - PAD) / (this.w - 2 * PAD), 0), 1)) * (this.xr1 - this.xr0);
+    const i = Math.round(xf * (this.data.length - 1));
     this.setHover(Math.min(Math.max(i, 0), this.data.length - 1));
   }
 
@@ -222,24 +271,28 @@ export class MiniChart {
     const d = this.data;
     if (!d.length) return;
     const n = d.length;
+    // Jendela zoom: irisan data [i0..i1) sesuai domain fraksi; skala-Y dari irisan.
+    const i0 = Math.floor(this.xr0 * (n - 1));
+    const i1 = Math.ceil(this.xr1 * (n - 1));
+    const span = Math.max(i1 - i0, 2);
     let vMax = 0;
     let vMin = 0;
-    for (const p of d) {
-      if (p.v > vMax) vMax = p.v;
-      if (p.v < vMin) vMin = p.v;
+    for (let i = i0; i < Math.min(i1 + 1, n); i++) {
+      if (d[i]!.v > vMax) vMax = d[i]!.v;
+      if (d[i]!.v < vMin) vMin = d[i]!.v;
     }
     const vAbs = Math.max(Math.abs(vMax), Math.abs(vMin), 1e-12);
     const innerW = this.w - 2 * PAD;
     const innerH = this.h - 2 * PAD - 6;
     const py = (v: number): number => this.h - PAD - 3 - ((v + vAbs) / (2 * vAbs)) * innerH;
-    const px = (i: number): number => PAD + (i / (n - 1)) * innerW;
+    const px = (i: number): number => PAD + ((i - i0) / span) * innerW;
 
     let dd = '';
-    for (let i = 0; i < n; i++) {
-      dd += (i === 0 ? 'M' : 'L') + px(i).toFixed(1) + ',' + py(d[i]!.v).toFixed(1);
+    for (let i = i0; i <= Math.min(i1, n - 1); i++) {
+      dd += (i === i0 ? 'M' : 'L') + px(i).toFixed(1) + ',' + py(d[i]!.v).toFixed(1);
     }
     this.plot.setAttribute('d', dd);
-    this.fill.setAttribute('d', `${dd} L${px(n - 1).toFixed(1)},${py(0).toFixed(1)} L${px(0).toFixed(1)},${py(0).toFixed(1)} Z`);
+    this.fill.setAttribute('d', `${dd} L${px(Math.min(i1, n - 1)).toFixed(1)},${py(0).toFixed(1)} L${px(i0).toFixed(1)},${py(0).toFixed(1)} Z`);
     const zy = py(0).toFixed(1);
     for (const z of [this.zero]) {
       z.setAttribute('x1', String(PAD));
@@ -259,9 +312,9 @@ export class MiniChart {
     this.tickB.setAttribute('y1', tyB);
     this.tickB.setAttribute('y2', tyB);
 
-    // Nilai puncak: titik ekstrem |v| maks (skip saat hover menutupi).
-    let peakI = 0;
-    for (let i = 1; i < n; i++) {
+    // Nilai puncak: titik ekstrem |v| maks dalam jendela terlihat.
+    let peakI = i0;
+    for (let i = i0 + 1; i <= Math.min(i1, n - 1); i++) {
       if (Math.abs(d[i]!.v) > Math.abs(d[peakI]!.v)) peakI = i;
     }
     const peak = d[peakI]!;
@@ -283,10 +336,10 @@ export class MiniChart {
       const ry = Math.max(py(p.v) - 8, 12);
       this.readoutEl.setAttribute('y', String(ry));
       this.readoutEl.textContent = `${this.fmtV(p.raw ?? p.v)} @ ${p.x.toPrecision(3)} m`;
-      this.peakEl.style.display = Math.abs(this.hoverI - peakI) < 6 ? 'none' : 'block';
+      this.peakEl.style.display = Math.abs(this.hoverI - peakI) < Math.max(6, span * 0.05) ? 'none' : 'block';
     } else {
       this.peakEl.style.display = 'block';
-      if (this.axisEl) this.axisEl.textContent = `${d[n - 1]!.x.toFixed(1)} m`;
+      if (this.axisEl) this.axisEl.textContent = d[Math.min(i1, n - 1)]!.x.toFixed(1) + ' m';
     }
   }
 }

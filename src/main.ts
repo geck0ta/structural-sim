@@ -233,8 +233,18 @@ async function main(): Promise<void> {
   btn.type = 'button';
   btn.className = 'module-btn';
   btn.setAttribute('aria-label', 'Mekanika Struktur');
+  btn.setAttribute('aria-expanded', 'false');
   btn.append(icon('ruler', 16));
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = 'Mekanika Struktur';
+  btn.append(lbl);
   btn.setAttribute('aria-current', 'true');
+  // A2: klik → rail mengembang 48→200px, label ikon muncul; klik lagi = collapapse.
+  btn.addEventListener('click', () => {
+    const on = document.body.classList.toggle('rail-wide');
+    btn.setAttribute('aria-expanded', String(on));
+  });
   nav.append(btn);
   sidebar.append(nav);
 
