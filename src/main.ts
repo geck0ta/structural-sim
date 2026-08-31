@@ -136,38 +136,6 @@ async function main(): Promise<void> {
     };
   }
 
-  // Expand chart: dblclick → overlay MiniChart besar (hover presisi, label penuh).
-  const overlayHost = document.createElement('div');
-  overlayHost.id = 'chart-overlay';
-  overlayHost.style.display = 'none';
-  document.body.append(overlayHost);
-  let overlayChart: MiniChart | null = null;
-  const closeOverlay = (): void => {
-    overlayHost.style.display = 'none';
-    overlayChart?.el.remove();
-    overlayChart = null;
-  };
-  overlayHost.addEventListener('click', (e) => {
-    if (e.target === overlayHost) closeOverlay();
-  });
-  const openOverlay = (src: MiniChart): void => {
-    const snap = src.snapshot();
-    if (!snap) return;
-    closeOverlay();
-    const big = new MiniChart(snap.label, snap.unit, snap.color, 920, 420, snap.fmtV, true);
-    big.update(snap.data);
-    big.onHover = (x) => view.setCrosshair(x);
-    overlayHost.append(big.el);
-    overlayHost.style.display = 'flex';
-    overlayChart = big;
-  };
-  charts.shear.onExpand = () => openOverlay(charts.shear);
-  charts.moment.onExpand = () => openOverlay(charts.moment);
-  charts.deflect.onExpand = () => openOverlay(charts.deflect);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlayHost.style.display !== 'none') closeOverlay();
-  });
-
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
   // Status bar instrumen: metrik kunci selalu terlihat, sekalipun inspector ditutup.
@@ -275,28 +243,32 @@ async function main(): Promise<void> {
   panelToggle.addEventListener('click', () => document.body.classList.toggle('panel-open'));
   sidebar.append(panelToggle);
 
-  // ===== Toggle tema — tombol toolbar (sistem sama dengan reset/reopen) =====
+  // ===== Toggle tema — siklus terang → senja → gelap (klik lanjut) =====
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
   themeBtn.className = 'tb-btn';
-  themeBtn.setAttribute('aria-label', 'Ganti tema terang/gelap');
+  themeBtn.setAttribute('aria-label', 'Ganti tema (terang/senja/gelap)');
+  themeBtn.title = 'Tema: terang → senja → gelap';
   themeBtn.append(icon('sun-moon', 18));
-  const applyTheme = (light: boolean): void => {
-    document.documentElement.dataset.theme = light ? 'light' : 'dark';
-    themeLight = light;
-    sm.setTheme(light);
-    view.setTheme(light);
-    view.setBeamMaterial(material3D(material(), textures, light));
+  type ThemeMode = 'light' | 'dusk' | 'dark';
+  const applyTheme = (mode: ThemeMode): void => {
+    document.documentElement.dataset.theme = mode;
+    themeLight = mode !== 'dark';
+    sm.setTheme(mode);
+    view.setTheme(mode !== 'dark');
+    view.setBeamMaterial(material3D(material(), textures, mode !== 'dark'));
     try {
-      localStorage.setItem('sl-theme', light ? 'light' : 'dark');
+      localStorage.setItem('sl-theme', mode);
     } catch { /* abaikan */ }
   };
-  // Restore tema tersimpan
+  // Restore tema tersimpan (legacy 'light'/'dark' tetap valid).
   try {
-    applyTheme(localStorage.getItem('sl-theme') === 'light');
+    const saved = localStorage.getItem('sl-theme');
+    applyTheme(saved === 'light' || saved === 'dusk' ? saved : 'dark');
   } catch { /* default dark */ }
   themeBtn.addEventListener('click', () => {
-    applyTheme(document.documentElement.dataset.theme !== 'light');
+    const cur = document.documentElement.dataset.theme;
+    applyTheme(cur === 'light' ? 'dusk' : cur === 'dusk' ? 'dark' : 'light');
   });
   document.body.append(sidebar);
 

@@ -79,10 +79,10 @@ export class SceneManager {
     this.fillLight = fill;
   }
 
-  /** Tema terang: latar/grid/fog lebih terang (3D match tema UI). */
-  setTheme(light: boolean): void {
+  /** Tema: 'light' | 'dusk' (senja) | 'dark'. 3D match tema UI. */
+  setTheme(mode: 'light' | 'dusk' | 'dark'): void {
     const dome = this.skyDome.material as THREE.ShaderMaterial;
-    if (light) {
+    if (mode === 'light') {
       this.scene.background = new THREE.Color(0xdfe3ea);
       this.scene.fog = new THREE.Fog(0xdfe3ea, 40, 130);
       (this.ground.material as THREE.MeshStandardMaterial).color.set(0xdadfe6);
@@ -93,6 +93,19 @@ export class SceneManager {
       (dome.uniforms.zenith.value as THREE.Color).set(0x2f6fd0);
       (dome.uniforms.horizon.value as THREE.Color).set(0xe8f1f8);
       (dome.uniforms.below.value as THREE.Color).set(0xdfe3ea);
+    } else if (mode === 'dusk') {
+      this.scene.background = new THREE.Color(0x1c1420);
+      this.scene.fog = new THREE.Fog(0x241826, 40, 130);
+      (this.ground.material as THREE.MeshStandardMaterial).color.set(0x1f1824);
+      this.grid.material.color.set(0x3d2f42);
+      this.ambient.intensity = 0.42;
+      this.keyLight.intensity = 2.4; // matahari rendah, hangat
+      this.keyLight.color.set(0xffc9a3);
+      this.fillLight.intensity = 0.7;
+      this.fillLight.color.set(0x6f7db8); // isian dingin lawas arah berlawanan
+      (dome.uniforms.zenith.value as THREE.Color).set(0x241b38);
+      (dome.uniforms.horizon.value as THREE.Color).set(0xd4713e);
+      (dome.uniforms.below.value as THREE.Color).set(0x1c1420);
     } else {
       this.scene.background = new THREE.Color(0x0d0f12);
       this.scene.fog = new THREE.Fog(0x0d0f12, 40, 130);
@@ -100,15 +113,34 @@ export class SceneManager {
       this.grid.material.color.set(0x2a3038);
       this.ambient.intensity = 0.35;
       this.keyLight.intensity = 2.2;
+      this.keyLight.color.set(0xffffff);
       this.fillLight.intensity = 0.6;
+      this.fillLight.color.set(0xdfe8ff);
       (dome.uniforms.zenith.value as THREE.Color).set(0x05070d);
       (dome.uniforms.horizon.value as THREE.Color).set(0x1a2436);
       (dome.uniforms.below.value as THREE.Color).set(0x0d0f12);
     }
-    this.sun.visible = light;
-    this.clouds.visible = light;
-    this.moon.visible = !light;
-    this.stars.visible = !light;
+    this.sun.visible = mode === 'light';
+    this.clouds.visible = mode !== 'dark';
+    this.moon.visible = mode === 'dark';
+    this.stars.visible = mode === 'dark';
+    // Tint awan per tema — putih siang, jingga-ungu senja (satu tekstur dua suasana).
+    const tint = mode === 'dusk' ? 0xf0a06a : 0xffffff;
+    for (const sp of this.clouds.children) {
+      (sp as THREE.Sprite).material.color.set(tint);
+      (sp as THREE.Sprite).material.opacity = mode === 'dusk' ? 0.42 : 0.5;
+    }
+    if (mode === 'dusk') {
+      // Matahari senja: turun ke horizon, oranye; awan senja muncul.
+      this.sun.visible = true;
+      this.sun.position.set(0.92, 0.16, -0.35).normalize().multiplyScalar(128);
+      (this.sun.children[0] as THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>).material.color.set(0xffb46b);
+      this.sun.scale.setScalar(1.35);
+    } else {
+      this.sun.position.set(0.55, 0.5, -0.55).normalize().multiplyScalar(128);
+      (this.sun.children[0] as THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>).material.color.set(0xfff6dc);
+      this.sun.scale.setScalar(1);
+    }
   }
 
   private setupGround(): void {
@@ -188,15 +220,31 @@ export class SceneManager {
     this.stars.add(makeStars(110, 1.6, 0xffffff, 0.55), makeStars(12, 2.6, 0xcfe0ff, 0.8));
     this.scene.add(this.stars);
 
-    // Awan (siang): 4 sprite lembut, drift lambat.
+    // Awan: kluster 5-6 sprite per bawan (paruh, flat, tampak volumetrik) — bukan kartu datar.
+    // 'light' putih; senja di-tint jingga/ungu via material.color (satu tekstur, dua suasana).
     this.clouds = new THREE.Group();
-    const cloudPos = [[-55, 44, -70], [20, 52, -80], [75, 40, -55], [-80, 34, 30]];
-    for (const [x, y, z] of cloudPos) {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('cloud'), transparent: true, opacity: 0.8, depthWrite: false, fog: false }));
-      s.scale.set(40, 13, 1);
-      s.position.set(x, y, z);
-      this.clouds.add(s);
-    }
+    const cloudTex = glowTex('cloud');
+    const cloudCluster = (cx: number, cy: number, cz: number, n: number, s: number): void => {
+      for (let i = 0; i < n; i++) {
+        const sp = new THREE.Sprite(
+          new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.5, depthWrite: false, fog: false }),
+        );
+        // Paruh: tengah lebih tinggi & besar, tepi rendah — siluet bawan alami.
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        sp.position.set(
+          cx + (t - 0.5) * s * 2.1 + (Math.random() - 0.5) * 3,
+          cy + Math.sin(t * Math.PI) * s * 0.32 + (Math.random() - 0.5) * 1.5,
+          cz + (Math.random() - 0.5) * 6,
+        );
+        const sc = s * (0.55 + Math.sin(t * Math.PI) * 0.5 + Math.random() * 0.18);
+        sp.scale.set(sc, sc * 0.36, 1);
+        this.clouds.add(sp);
+      }
+    };
+    // 3 bawan kecil di kiri/kanan horizon — overlay JANGAN besar (2 ruas viewport atas).
+    cloudCluster(-58, 46, -72, 6, 10);
+    cloudCluster(26, 52, -80, 5, 12);
+    cloudCluster(72, 40, -58, 6, 9);
     this.scene.add(this.clouds);
   }
 

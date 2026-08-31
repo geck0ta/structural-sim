@@ -53,6 +53,22 @@
   color-scheme: light;
 }
 
+/* Senja: gelap hangat, teks hangat — satu sistem, bukan invert */
+:root[data-theme='dusk'] {
+  --bg: #191219;
+  --surface: rgba(33, 24, 33, 0.92);
+  --surface-2: rgba(44, 32, 44, 0.9);
+  --border: rgba(255, 200, 150, 0.1);
+  --text: #f2e7dc;
+  --text-2: #b39a8f;
+  --text-3: #7d6a66;
+  --accent: #e88f5a;
+  --danger: #ff6d5e;
+  --warn: #ffc06a;
+  --ok: #7fb56a;
+  color-scheme: dark;
+}
+
 /* legacy alias — dihapus saat fase 3 menyapu semua rule */
 :root {
   --fg: var(--text);
@@ -253,27 +269,6 @@ body {
 /* panel slide kanan saat ditutup */
 #panel {
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-/* Overlay expand chart — dblclick chart. Surface penuh, chart besar di tengah. */
-#chart-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  z-index: 40;
-}
-
-#chart-overlay .minichart {
-  width: min(920px, 92vw);
-  height: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-panel);
-  padding: var(--sp-4);
-  cursor: crosshair;
 }
 
 .module-btn:focus-visible,
