@@ -98,12 +98,12 @@ export class SceneManager {
       this.scene.fog = new THREE.Fog(0x241826, 40, 130);
       (this.ground.material as THREE.MeshStandardMaterial).color.set(0x1f1824);
       this.grid.material.color.set(0x3d2f42);
-      this.ambient.intensity = 0.42;
+      this.ambient.intensity = 0.5;
       this.keyLight.intensity = 2.4; // matahari rendah, hangat
       this.keyLight.color.set(0xffc9a3);
       this.fillLight.intensity = 0.7;
       this.fillLight.color.set(0x6f7db8); // isian dingin lawas arah berlawanan
-      (dome.uniforms.zenith.value as THREE.Color).set(0x241b38);
+      (dome.uniforms.zenith.value as THREE.Color).set(0x1d1832);
       (dome.uniforms.horizon.value as THREE.Color).set(0xd4713e);
       (dome.uniforms.below.value as THREE.Color).set(0x1c1420);
     } else {
