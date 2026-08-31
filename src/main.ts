@@ -206,7 +206,7 @@ async function main(): Promise<void> {
   const mathToggle = document.createElement('button');
   mathToggle.type = 'button';
   mathToggle.className = 'chip';
-  mathToggle.textContent = 'Ribbon fungsi V/M/y';
+  mathToggle.textContent = 'Ribbon V·M·y';
   mathToggle.addEventListener('click', () => {
     const on = mathToggle.classList.toggle('on');
     for (const k of ['V', 'M', 'y'] as const) {
