@@ -257,9 +257,9 @@ export function buildBeamPanel(
   eh.append(icon('chevron-down', 13), Object.assign(document.createElement('span'), { textContent: 'Langkah perhitungan' }));
   const explainSteps = document.createElement('div');
   explainSteps.className = 'explain-steps';
-  explainSteps.hidden = true;
+  explainSteps.style.display = 'none'; // P1: accordion tutup — kontrol murni via style (hidden attr nyangkut)
   eh.addEventListener('click', () => {
-    const open = Boolean(explainSteps.hidden);
+    const open = explainSteps.style.display === 'none';
     explainSteps.style.display = open ? '' : 'none';
     eh.setAttribute('aria-expanded', String(open));
     eh.classList.toggle('open', open);
@@ -272,10 +272,10 @@ export function buildBeamPanel(
   assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'Asumsi: linear elastis · tanpa P-Δ · Euler-Bernoulli' }));
   const assumDetail = document.createElement('p');
   assumDetail.className = 'caption';
-  assumDetail.hidden = true;
+  assumDetail.style.display = 'none';
   assumDetail.textContent = 'Linear elastis · small displacement (tanpa P-Δ) · Euler-Bernoulli (tanpa shear deformation) · plane sections remain plane · sambungan rigid.';
   assumBtn.addEventListener('click', () => {
-    const open = Boolean(assumDetail.hidden);
+    const open = assumDetail.style.display === 'none';
     assumDetail.style.display = open ? '' : 'none';
     assumBtn.setAttribute('aria-expanded', String(open));
     assumBtn.classList.toggle('open', open);

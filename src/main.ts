@@ -148,7 +148,14 @@ async function main(): Promise<void> {
     scheduleSolve();
   };
   const panel = buildBeamPanel(params, () => scheduleSolve(), replay);
-  panelHost.append(panel.el);
+  // Tombol tutup panel — panel balik via ikon sidebar (panelToggle).
+  const panelClose = document.createElement('button');
+  panelClose.type = 'button';
+  panelClose.className = 'panel-close';
+  panelClose.setAttribute('aria-label', 'Tutup panel');
+  panelClose.append(icon('x', 14));
+  panelClose.addEventListener('click', () => document.body.classList.remove('panel-open'));
+  panelHost.append(panelClose, panel.el);
   document.body.append(panelHost);
 
   // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
