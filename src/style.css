@@ -615,8 +615,8 @@ button:focus-visible,
   all: unset;
   box-sizing: border-box;
   height: 28px; /* = tinggi .segmented (2px pad + 4px pad + 2px pad) — satu baris sejajar */
-  padding: 0 12px;
-  font-size: var(--text-2);
+  padding: 0 14px; /* = horizontal pad .segmented-btn */
+  font-size: 12px; /* = font .segmented-btn */
   font-weight: 500;
   color: var(--text);
   background: color-mix(in srgb, var(--text) 7%, transparent);
