@@ -265,20 +265,27 @@ export function buildBeamPanel(
     eh.setAttribute('aria-expanded', String(open));
     eh.classList.toggle('open', open);
   });
-  // §11: asumsi collapse — toggle satu baris; isi = bullet list vertikal (bukan paragraf •).
+  // Asumsi analisis — daftar bernomor, redaksi teknis ringkas.
   const assumBtn = document.createElement('button');
   assumBtn.type = 'button';
   assumBtn.className = 'accordion-h assum';
   assumBtn.setAttribute('aria-expanded', 'false');
-  assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'Asumsi' }));
-  const assumDetail = document.createElement('ul');
+  assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'ASUMSI' }));
+  const assumDetail = document.createElement('ol');
   assumDetail.className = 'caption assum-list';
   assumDetail.style.display = 'none';
-  for (const a of ['Linear elastis', 'Small displacement (tanpa P-Δ)', 'Euler-Bernoulli (tanpa shear deformation)', 'Plane sections remain plane', 'Sambungan rigid']) {
+  const asumsi = [
+    'Material bekerja linier elastis mengikuti hukum Hooke.',
+    'Perhitungan mengabaikan efek orde kedua (P-Δ) dan deformasi geser.',
+    'Defleksi jauh lebih kecil daripada dimensi bentang (teori Euler-Bernoulli).',
+    'Distorsi penampang diabaikan; bidang datar tetap datar setelah pembebanan.',
+    'Hubungan balok-tumpuan dianggap kaku; tidak ada selip atau penurunan tumpuan.',
+  ];
+  asumsi.forEach((a) => {
     const li = document.createElement('li');
     li.textContent = a;
     assumDetail.append(li);
-  }
+  });
   assumBtn.addEventListener('click', () => {
     const open = assumDetail.style.display === 'none';
     assumDetail.style.display = open ? '' : 'none';

@@ -184,31 +184,22 @@ async function main(): Promise<void> {
     },
     onDragEnd: () => scheduleSolve(),
   };
-  // Tombol buka balik panel (di toolbar, hanya saat panel ditutup).
-  const reopenBtn = document.createElement('button');
-  reopenBtn.type = 'button';
-  reopenBtn.className = 'tb-btn';
-  reopenBtn.style.display = 'none';
-  reopenBtn.setAttribute('aria-label', 'Buka panel');
-  reopenBtn.append(icon('sliders-horizontal', 16));
-  reopenBtn.addEventListener('click', () => {
-    panelHost.style.transform = '';
-    reopenBtn.style.display = 'none';
-    document.body.classList.add('panel-open');
-  });
+  // Satu tombol toggle panel: x ↔ sliders — tak ada pasangan tombol yang state-nya bisa tercecer.
+  const panelToggleBtn = document.createElement('button');
+  panelToggleBtn.type = 'button';
+  panelToggleBtn.className = 'tb-btn';
+  panelToggleBtn.setAttribute('aria-label', 'Tutup panel');
+  panelToggleBtn.append(icon('x', 16));
+  let panelIsOpen = true;
+  const setPanel = (open: boolean): void => {
+    panelIsOpen = open;
+    document.body.classList.toggle('panel-open', open);
+    panelHost.style.transform = open ? '' : 'translateX(calc(100% + 24px))';
+    panelToggleBtn.replaceChildren(icon(open ? 'x' : 'sliders-horizontal', 16));
+    panelToggleBtn.setAttribute('aria-label', open ? 'Tutup panel' : 'Buka panel');
+  };
+  panelToggleBtn.addEventListener('click', () => setPanel(!panelIsOpen));
   panelHost.append(panel.el);
-  // X tutup inspector di toolbar (kanan, sebelah reset/tema) — tak ikut scroll konten.
-  const panelClose = document.createElement('button');
-  panelClose.type = 'button';
-  panelClose.className = 'panel-close';
-  panelClose.setAttribute('aria-label', 'Tutup panel');
-  panelClose.append(icon('x', 16));
-  panelClose.addEventListener('click', () => {
-    document.body.classList.remove('panel-open');
-    panelHost.style.transform = 'translateX(calc(100% + 24px))';
-    panelClose.style.display = 'none';
-    reopenBtn.style.display = '';
-  });
   document.body.append(panelHost);
 
   // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
@@ -305,7 +296,7 @@ async function main(): Promise<void> {
   const resetView = (): void => sm.fitTo(params.span, view.beamCenterY);
   resetBtn.addEventListener('click', resetView);
   // Panel reopen + reset kamera + tema + tutup inspector — satu sistem di toolbar.
-  tbRight.append(panelClose, reopenBtn, resetBtn, themeBtn);
+  tbRight.append(panelToggleBtn, resetBtn, themeBtn);
   toolbar.append(tbLeft, tbRight);
   document.body.append(toolbar);
 

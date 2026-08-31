@@ -244,22 +244,7 @@ body {
 }
 
 /* X tutup inspector — di toolbar, 32px hit (satu sistem dengan tb-btn) */
-.panel-close {
-  width: var(--h-ctl);
-  height: var(--h-ctl);
-  border: 1px solid var(--border);
-  border-radius: var(--r-ctl);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-}
-
-.panel-close:hover {
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-  color: var(--text);
-}
+/* [dihapus] .panel-close — diganti satu panelToggleBtn (tb-btn) yang swap ikon x/sliders */
 
 /* panel slide kanan saat ditutup */
 #panel {
@@ -360,12 +345,13 @@ button:focus-visible,
   line-height: 1.2; /* tinggi stabil → chevron center vertikal presisi */
 }
 
-/* bullet sejajar kiri: • tepat di bawah huruf "A" Asumsi (bukan indent 40px default) */
+/* daftar bernomor ASUMSI: angka rapat kiri, sejajar di bawah "A" */
 .assum-list {
   margin: 2px 0 0;
-  padding-left: 12px;
+  padding-left: 14px;
   display: grid;
   gap: 3px;
+  list-style-position: inside;
 }
 
 /* P6: 2 headline sejajar */
