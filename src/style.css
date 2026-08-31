@@ -614,15 +614,16 @@ button:focus-visible,
 .chip {
   all: unset;
   box-sizing: border-box;
-  height: 28px; /* = tinggi .segmented (2px pad + 4px pad + 2px pad) — satu baris sejajar */
-  padding: 0 14px; /* = horizontal pad .segmented-btn */
+  /* Identik formula .segmented: container pad 2px + btn pad 4px → tinggi otomatis sama;
+     bg & radius sama → satu bahasa bentuk dengan Explore/Explain. */
+  padding: 6px 14px;
   font-size: 12px; /* = font .segmented-btn */
-  font-weight: 500;
+  line-height: 1;
   color: var(--text);
-  background: color-mix(in srgb, var(--text) 7%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 9px; /* = radius .segmented — bentuk sama persis */
-  white-space: nowrap; /* teks satu baris — tak pernah meluber dari kotak 28px */
+  background: rgba(120, 128, 136, 0.18); /* = bg .segmented */
+  border: 1px solid transparent; /* placeholder — hover/accent isi */
+  border-radius: 9px; /* = radius .segmented */
+  white-space: nowrap; /* teks satu baris — tak pernah meluber */
   cursor: pointer;
   transition: background 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
 }
