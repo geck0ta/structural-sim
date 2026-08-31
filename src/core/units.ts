@@ -21,6 +21,17 @@ export function sig3(v: number): string {
   return p.includes('.') ? p.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') : p;
 }
 
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+/** Notasi ilmiah gaya buku: 162000 → "1.62 × 10⁵" (bukan "1.6e+5"). */
+export function fmtSci(v: number): string {
+  if (v === 0 || !Number.isFinite(v)) return '0';
+  const exp = Math.floor(Math.log10(Math.abs(v)));
+  const mant = v / 10 ** exp;
+  const sup = (exp < 0 ? '⁻' : '') + String(Math.abs(exp)).split('').map((d) => SUP[+d]!).join('');
+  return `${mant.toFixed(2)} × 10${sup}`;
+}
+
 /** Format nilai SI dengan prefix otomatis: 1234567 N → "1.23 MN". */
 export function fmt(base: number, unit: string): string {
   if (base === 0 || !Number.isFinite(base)) return `0 ${unit}`;

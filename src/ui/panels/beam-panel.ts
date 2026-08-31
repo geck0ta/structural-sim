@@ -1,6 +1,6 @@
 import { MATERIALS } from '../../data/materials';
 import { SECTION_PRESETS } from '../../structural/models/section';
-import { fmtForce, fmtMoment, fmtStress, fmtLength } from '../../core/units';
+import { fmtForce, fmtMoment, fmtLength, fmtStress, fmtSci } from '../../core/units';
 import type { BeamSolution } from '../../structural/beam/beam-solver';
 import { IOSSlider } from '../glass/slider';
 import { SegmentedControl } from '../glass/segmented';
@@ -11,14 +11,18 @@ import { icon } from '../glass/icons';
 // State dimiliki main.ts; panel emit perubahan lewat callback onChange.
 
 export interface BeamParams {
-  span: number; // m
-  loadP: number; // N
-  loadAt: number; // m
+  span: number;
+  loadP: number;
+  /** Beban merata w (N/m) — terpisah dari loadP agar satuan kN/m jujur. */
+  loadW: number;
+  loadAt: number;
   materialId: string;
   sectionId: string;
-  support: 'ss' | 'cantilever';
-  loadType: 'point' | 'udl'; // titik atau merata
-  deformScale: number; // faktor pengali skala defleksi (default 1 = auto 10% bentang)
+  support: 'cantilever' | 'ss';
+  loadType: 'point' | 'udl';
+  /** Kasus preset aktif — sinkron dengan loadType/support agar judul tak konflik. */
+  presetId: 'cantilever' | 'bridge' | 'udl';
+  deformScale: number;
 }
 
 export interface BeamPanel {
@@ -38,13 +42,13 @@ export function buildBeamPanel(
   // Preset kasus umum → satu picker "Contoh kasus" (declutter: bukan 3 chip wrap)
   const onChipClick: Array<() => void> = [];
   const presets = [
-    { id: 'cantilever', label: 'Uji kantilever — P di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; } },
-    { id: 'bridge', label: 'Jembatan SS — beban di tengah', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; } },
-    { id: 'udl', label: 'Beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 40e3; params.loadType = 'udl'; } },
+    { id: 'cantilever', label: 'Kantilever — beban titik di ujung', apply: (): void => { params.support = 'cantilever'; params.span = 6; params.loadP = 20e3; params.loadAt = 6; params.loadType = 'point'; params.presetId = 'cantilever'; } },
+    { id: 'bridge', label: 'Jembatan SS — beban titik di tengah', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadP = 30e3; params.loadAt = 4; params.loadType = 'point'; params.presetId = 'bridge'; } },
+    { id: 'udl', label: 'Beban merata sepanjang bentang', apply: (): void => { params.support = 'ss'; params.span = 8; params.loadW = 15e3; params.loadType = 'udl'; params.presetId = 'udl'; } },
   ];
   const presetPicker = new IOSPicker(
     presets.map((p) => ({ id: p.id, label: p.label })),
-    presets[0].id,
+    params.presetId ?? 'cantilever',
     (id) => {
       const p = presets.find((x) => x.id === id)!;
       // D19: skeleton singkat saat ganti kasus — feedback transisi (300ms).
@@ -134,6 +138,8 @@ export function buildBeamPanel(
     if (posSlider) posSlider.slider.setRange(0.5, v, params.loadAt);
   }, fmtLength);
   const loadRow = sliderRow('Beban P', 0, 100, 1, () => params.loadP / 1000, (v) => { params.loadP = v * 1000; }, (v) => fmtForce(v * 1000));
+  // Beban merata dalam kN/m — satuan keilmuan jujur (gaya per panjang), input N/m internal.
+  const loadWRow = sliderRow('Beban merata w', 0, 40, 0.5, () => params.loadW / 1000, (v) => { params.loadW = v * 1000; }, (v) => `${v.toFixed(1)} kN/m`);
   posSlider = sliderRow('Posisi beban a', 0.5, params.span, 0.1, () => params.loadAt, (v) => { params.loadAt = v; }, fmtLength);
   // §7: skala deformasi ×N — user override terhadap auto-scale (default ×1.0).
   const deformRow = sliderRow('Skala deformasi', 1, 5, 0.5, () => params.deformScale, (v) => { params.deformScale = v; }, (v) => `×${v.toFixed(1)}`);
@@ -148,9 +154,11 @@ export function buildBeamPanel(
   const syncAll = (): void => {
     spanRow.slider.set(params.span, false);
     loadRow.slider.set(params.loadP / 1000, false);
+    loadWRow.slider.set(params.loadW / 1000, false);
     if (posSlider) posSlider.slider.setRange(0.5, params.span, params.loadAt);
     spanRow.row.querySelector('.val')!.textContent = fmtLength(params.span);
     loadRow.row.querySelector('.val')!.textContent = fmtForce(params.loadP);
+    loadWRow.row.querySelector('.val')!.textContent = `${(params.loadW / 1000).toFixed(1)} kN/m`;
     supSeg.select(params.support);
     loadTypeSeg.select(params.loadType ?? 'point');
     applyLoadType(params.loadType ?? 'point');
@@ -161,11 +169,12 @@ export function buildBeamPanel(
   const loadTypeLabel = document.createElement('div');
   loadTypeLabel.className = 'param-label';
   loadTypeLabel.textContent = 'Tipe beban';
-  const loadTypeName = loadRow.row.querySelector('label > span:first-child');
   const applyLoadType = (v: 'point' | 'udl'): void => {
     params.loadType = v;
+    loadRow.row.style.display = v === 'point' ? '' : 'none';
+    loadWRow.row.style.display = v === 'udl' ? '' : 'none';
     posSlider.row.style.display = v === 'point' ? '' : 'none';
-    if (loadTypeName) loadTypeName.textContent = v === 'point' ? 'Beban P' : 'Beban merata w';
+    loadTypeLabel.textContent = v === 'point' ? 'Beban titik P' : 'Beban merata w';
   };
   const loadTypeSeg = new SegmentedControl(
     [
@@ -260,16 +269,20 @@ export function buildBeamPanel(
     eh.setAttribute('aria-expanded', String(open));
     eh.classList.toggle('open', open);
   });
-  // §11: asumsi collapse — satu baris toggle, detail expandable (P2)
+  // §11: asumsi collapse — toggle satu baris; isi = bullet list vertikal (bukan paragraf •).
   const assumBtn = document.createElement('button');
   assumBtn.type = 'button';
   assumBtn.className = 'accordion-h assum';
   assumBtn.setAttribute('aria-expanded', 'false');
-  assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'Asumsi: linear elastis · tanpa P-Δ · Euler-Bernoulli' }));
-  const assumDetail = document.createElement('p');
-  assumDetail.className = 'caption';
+  assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'Asumsi' }));
+  const assumDetail = document.createElement('ul');
+  assumDetail.className = 'caption assum-list';
   assumDetail.style.display = 'none';
-  assumDetail.textContent = 'Linear elastis · small displacement (tanpa P-Δ) · Euler-Bernoulli (tanpa shear deformation) · plane sections remain plane · sambungan rigid.';
+  for (const a of ['Linear elastis', 'Small displacement (tanpa P-Δ)', 'Euler-Bernoulli (tanpa shear deformation)', 'Plane sections remain plane', 'Sambungan rigid']) {
+    const li = document.createElement('li');
+    li.textContent = a;
+    assumDetail.append(li);
+  }
   assumBtn.addEventListener('click', () => {
     const open = assumDetail.style.display === 'none';
     assumDetail.style.display = open ? '' : 'none';
@@ -310,7 +323,8 @@ export function buildBeamPanel(
       d.className = 'headline';
       const l = document.createElement('span');
       l.className = 'headline-label';
-      l.textContent = label;
+      // Label "σ lentur" → σ<sub>lentur</sub>; "δ maks" → δ<sub>maks</sub> (satu gaya).
+      l.innerHTML = label.replace(/^(.+?) (.+)$/, '$1<sub>$2</sub>');
       const v = document.createElement('span');
       v.className = 'big-num' + (warn ? ' warn' : '');
       v.textContent = value;
@@ -319,8 +333,10 @@ export function buildBeamPanel(
     };
     const grid = document.createElement('div');
     grid.className = 'headline-grid';
+    // Lendutan: arah sebagai panah (↓), bukan minus — antarmuka lebih bersih.
+    const defl = sol.maxDeflection.value;
     grid.append(
-      headline('δ maks', fmtLength(sol.maxDeflection.value)),
+      headline('δ maks', `${defl < 0 ? '↓ ' : '↑ '}${fmtLength(Math.abs(defl))}`),
       headline('σ lentur', fmtStress(sol.maxBendingStress), sol.maxBendingStress > MATERIALS[params.materialId]!.yieldStrength),
     );
     const dc = sol.safetyFactor === Infinity ? '' : ` · D/C ${(1 / sol.safetyFactor).toPrecision(3)}${1 / sol.safetyFactor > 1 ? ' — LEBIH' : ''}`;
@@ -339,11 +355,11 @@ export function buildBeamPanel(
     explainSteps.replaceChildren(
       step('1. EI = E·I', `EI = ${fmtStress(mat.elasticModulus)} × ${(sec.props.Iy / 1e6).toPrecision(4)}×10⁶ mm⁴ = ${(sol.EI / 1000).toPrecision(4)} kN·m²`),
       step('2. Reaksi', params.support === 'cantilever'
-        ? `Kantilever: Ra = P = ${fmtForce(sol.reactions.Ra)}, Ma = −P·a = ${fmtMoment(sol.reactions.Ma)}`
-        : `ΣM tentang A → Rb = P·a/L = ${fmtForce(sol.reactions.Rb)}; Ra = P − Rb = ${fmtForce(sol.reactions.Ra)}`),
-      step('3. σ = M·c/I', `σ = ${fmtMoment(sol.maxMoment.value)} × ${fmtLength((sec.shape === 'circular' ? sec.dims.d : sec.dims.h) / 2000)} / ${sec.props.Iy.toPrecision(4)} mm⁴ = ${fmtStress(sol.maxBendingStress)}`),
+        ? `Kantilever: Ra = P = ${fmtForce(sol.reactions.Ra)}; Ma = P·a = ${fmtMoment(sol.reactions.Ma)}`
+        : `ΣM tentang A: Rb = P·a/L = ${fmtForce(sol.reactions.Rb)}; Ra = P − Rb = ${fmtForce(sol.reactions.Ra)}`),
+      step('3. σ = M·c/I', `σ = ${fmtMoment(sol.maxMoment.value)} × ${fmtLength((sec.shape === 'circular' ? sec.dims.d : sec.dims.h) / 2000)} / ${(sec.props.Iy / 1e6).toPrecision(4)}×10⁶ mm⁴ = ${fmtStress(sol.maxBendingStress)}`),
       step('4. SF = fy/σ', `SF = ${fmtStress(mat.yieldStrength)} / ${fmtStress(sol.maxBendingStress)} = ${sol.safetyFactor === Infinity ? '∞' : sol.safetyFactor.toPrecision(3)}`),
-      step('5. Keseimbangan', `ΣV = ${sol.equilibrium.sumV.toExponential(1)} N · ΣM = ${sol.equilibrium.sumM.toExponential(1)} N·m → ${sol.equilibrium.ok ? 'SETIMBANG ✓' : 'CEK ULANG'}`), // F5
+      step('5. Keseimbangan', `ΣV = ${fmtSci(sol.equilibrium.sumV)} N; ΣM = ${fmtSci(sol.equilibrium.sumM)} N·m → ${sol.equilibrium.ok ? 'SETIMBANG ✓' : 'CEK ULANG'}`), // F5
     );
   };
 

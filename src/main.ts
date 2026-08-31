@@ -55,11 +55,13 @@ async function main(): Promise<void> {
   const params: BeamParams = {
     span: 6,
     loadP: 20e3,
+    loadW: 15e3,
     loadAt: 6,
     materialId: 'steelS355',
     sectionId: 'ipe300',
     support: 'cantilever',
     loadType: 'point',
+    presetId: 'cantilever',
     deformScale: 1,
   };
   // Restore param tersimpan (localStorage) — refresh tak reset pengaturan.
@@ -68,12 +70,18 @@ async function main(): Promise<void> {
     if (saved) {
       if (typeof saved.span === 'number') params.span = saved.span;
       if (typeof saved.loadP === 'number') params.loadP = saved.loadP;
+      if (typeof saved.loadW === 'number') params.loadW = saved.loadW;
       if (typeof saved.loadAt === 'number') params.loadAt = Math.min(saved.loadAt, params.span);
       if (typeof saved.deformScale === 'number' && saved.deformScale >= 1 && saved.deformScale <= 5) params.deformScale = saved.deformScale;
       if (saved.materialId && MATERIALS[saved.materialId]) params.materialId = saved.materialId;
       if (saved.sectionId && SECTION_PRESETS.some((s) => s.id === saved.sectionId)) params.sectionId = saved.sectionId;
       if (saved.support === 'ss' || saved.support === 'cantilever') params.support = saved.support;
-      if (saved.loadType === 'point' || saved.loadType === 'udl') params.loadType = saved.loadType;
+      if (saved.loadType === 'point' || saved.loadType === 'udl') {
+        params.loadType = saved.loadType;
+        // Judul preset & picker mengikuti state tersimpan — tanpa konflik "P di ujung" saat udl.
+        if (saved.loadType === 'udl') params.presetId = 'udl';
+      }
+      if (saved.presetId && ['cantilever', 'bridge', 'udl'].includes(saved.presetId)) params.presetId = saved.presetId;
     }
   } catch { /* default */ }
   // F13: URL params menang atas localStorage — state shareable (?span=8&p=30&at=4…).
@@ -82,12 +90,16 @@ async function main(): Promise<void> {
     const qs = (k: string): number | null => { const v = Number.parseFloat(q.get(k) ?? ''); return Number.isFinite(v) ? v : null; };
     const span = qs('span'); if (span !== null && span > 0) params.span = span;
     const p = qs('p'); if (p !== null) params.loadP = Math.max(0, p) * 1000;
+    const w = qs('w'); if (w !== null) params.loadW = Math.max(0, w) * 1000;
     const at = qs('at'); if (at !== null) params.loadAt = Math.min(Math.max(at, 0), params.span);
     const mat = q.get('mat'); if (mat && MATERIALS[mat]) params.materialId = mat;
     const sec = q.get('sec'); if (sec && SECTION_PRESETS.some((s) => s.id === sec)) params.sectionId = sec;
     const sup = q.get('sup'); if (sup === 'ss' || sup === 'cantilever') params.support = sup;
     const lt = q.get('lt'); if (lt === 'point' || lt === 'udl') params.loadType = lt;
     if (params.support === 'cantilever') params.loadAt = params.span;
+    if (params.loadType === 'udl' && params.support === 'ss') params.presetId = 'udl';
+    if (params.loadType === 'point' && params.support === 'ss') params.presetId = 'bridge';
+    if (params.loadType === 'point' && params.support === 'cantilever') params.presetId = 'cantilever';
   } catch { /* default */ }
 
   let themeLight = false;
@@ -316,9 +328,10 @@ async function main(): Promise<void> {
 
   const applySolution = (): void => {
     const loads: BeamLoad[] = [];
-    if (params.loadP > 0) {
-      if (params.loadType === 'udl') loads.push({ type: 'udl', value: params.loadP / params.span, from: 0, to: params.span });
-      else loads.push({ type: 'point', value: params.loadP, at: params.loadAt });
+    if (params.loadType === 'udl') {
+      if (params.loadW > 0) loads.push({ type: 'udl', value: params.loadW, from: 0, to: params.span });
+    } else if (params.loadP > 0) {
+      loads.push({ type: 'point', value: params.loadP, at: params.loadAt });
     }
     const case_ = {
       span: params.span,

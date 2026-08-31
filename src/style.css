@@ -128,18 +128,19 @@ body {
   position: fixed;
   top: 56px;
   left: 12px;
-  bottom: 12px;
   width: var(--w-rail);
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
   padding: var(--sp-2);
   z-index: 10;
+  /* Tanpa bottom memanjang — latar hanya setinggi isi (tak ada garis vertikal menggantung). */
 }
 
 #sidebar .brand {
   display: flex;
   align-items: center;
+  justify-content: center; /* ikon tunggal: center mutlak */
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -161,6 +162,7 @@ body {
   all: unset;
   display: flex;
   align-items: center;
+  justify-content: center; /* ikon tunggal di rail: center mutlak dalam kotak */
   gap: 10px;
   padding: 8px 10px;
   border-radius: 9px;
@@ -368,7 +370,7 @@ button:focus-visible,
 }
 
 .headline .big-num {
-  font-size: 22px; /* P12: dua kolom sempit — 28px tak muat */
+  font-size: 20px; /* ruang untuk satuan — MPa/Mtak muat satu baris */
 }
 
 #panel h2 {
@@ -459,7 +461,7 @@ button:focus-visible,
   left: 72px;  /* rail 48 + 12 + 12 */
   right: 324px; /* inspector 300 + 12 + 12 */
   bottom: 12px;
-  height: 166px;
+  height: 172px; /* status bar 36 + charts + gap */
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -469,12 +471,12 @@ button:focus-visible,
 
 /* Status bar instrumen — metrik kunci, selalu terlihat */
 #statusbar {
-  height: var(--h-status);
+  height: 36px; /* ruang napas: metrik tak menempel tepi bawah layar */
   display: flex;
   align-items: center;
   gap: var(--sp-4);
   padding: 0 var(--sp-3);
-  font-size: var(--text-2);
+  font-size: var(--text-1); /* naikkan keterbacaan dari text-2 */
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
   border-bottom: 1px solid var(--border);
@@ -596,10 +598,11 @@ button:focus-visible,
 }
 
 .disclaimer {
-  margin: 12px 0 0;
+  margin: var(--sp-5) 0 0;
   font-size: 10px;
-  line-height: 1.35;
-  color: var(--text-2);
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--text-3);
 }
 
 /* ===== Preset chip ===== */
@@ -650,6 +653,12 @@ button:focus-visible,
 .headline-label {
   font-size: 11px;
   color: var(--text-2);
+}
+
+/* subscript label headline: σ_lentur, δ_maks — seragam satu gaya */
+.headline-label sub {
+  font-size: 0.75em;
+  letter-spacing: 0;
 }
 
 /* skeleton shimmer — empty state hasil sebelum replay selesai */
@@ -794,7 +803,7 @@ select {
 
 .math-row {
   display: flex;
-  margin-bottom: 14px;
+  margin: var(--sp-3) 0 var(--sp-2); /* jarak dari segmented di atasnya — tak menempel */
 }
 
 .result-row {
@@ -810,7 +819,7 @@ select {
 }
 
 .result-row .num.warn {
-  color: #ff453a;
+  color: var(--danger);
   font-weight: 600;
 }
 
