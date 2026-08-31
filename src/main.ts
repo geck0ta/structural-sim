@@ -229,7 +229,7 @@ async function main(): Promise<void> {
   btn.type = 'button';
   btn.className = 'module-btn';
   btn.setAttribute('aria-label', 'Mekanika Struktur');
-  btn.append(icon('ruler', 18));
+  btn.append(icon('ruler', 16));
   btn.setAttribute('aria-current', 'true');
   nav.append(btn);
   sidebar.append(nav);
@@ -239,7 +239,7 @@ async function main(): Promise<void> {
   panelToggle.type = 'button';
   panelToggle.className = 'module-btn panel-toggle';
   panelToggle.setAttribute('aria-label', 'Panel parameter');
-  panelToggle.append(icon('sliders-horizontal', 18));
+  panelToggle.append(icon('sliders-horizontal', 16));
   panelToggle.addEventListener('click', () => document.body.classList.toggle('panel-open'));
   sidebar.append(panelToggle);
 
@@ -249,7 +249,7 @@ async function main(): Promise<void> {
   themeBtn.className = 'tb-btn';
   themeBtn.setAttribute('aria-label', 'Ganti tema (terang/senja/gelap)');
   themeBtn.title = 'Tema: terang → senja → gelap';
-  themeBtn.append(icon('sun-moon', 18));
+  themeBtn.append(icon('sun-moon', 16));
   type ThemeMode = 'light' | 'dusk' | 'dark';
   const applyTheme = (mode: ThemeMode): void => {
     document.documentElement.dataset.theme = mode;
@@ -277,10 +277,10 @@ async function main(): Promise<void> {
   toolbar.id = 'toolbar';
   const tbLeft = document.createElement('div');
   tbLeft.className = 'tb-group';
-  const tbTitle = document.createElement('span');
-  tbTitle.className = 'tb-title';
-  tbTitle.textContent = 'Structural Lab · Mekanika Struktur'; // satu-satunya brand, tipis
-  tbLeft.append(tbTitle);
+  // Logo mark tunggal — tanpa teks brand, tanpa latar (polos simetris).
+  const logo = icon('activity', 16);
+  logo.classList.add('tb-logo');
+  tbLeft.append(logo);
   const tbRight = document.createElement('div');
   tbRight.className = 'tb-group';
   // Reset kamera — tinggi/radius/icon sama dengan tema (32px token).
@@ -289,7 +289,7 @@ async function main(): Promise<void> {
   resetBtn.className = 'tb-btn';
   resetBtn.setAttribute('aria-label', 'Reset tampilan kamera (R)');
   resetBtn.title = 'Reset tampilan (R)';
-  resetBtn.append(icon('scan', 18));
+  resetBtn.append(icon('scan', 16));
   const resetView = (): void => sm.fitTo(params.span, view.beamCenterY);
   resetBtn.addEventListener('click', resetView);
   // Panel reopen + reset kamera + tema + tutup inspector — satu sistem di toolbar.

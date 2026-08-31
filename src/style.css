@@ -69,11 +69,7 @@
   color-scheme: dark;
 }
 
-/* legacy alias — dihapus saat fase 3 menyapu semua rule */
 :root {
-  --fg: var(--text);
-  --muted: var(--text-2);
-  --glass-bg: var(--surface);
   --glass-blur: 14px;
   --radius: var(--r-panel);
 }
@@ -90,7 +86,7 @@ body {
 
 body {
   font: 13px/1.45 -apple-system, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, sans-serif;
-  color: var(--fg);
+  color: var(--text);
   background: var(--bg);
   overflow: hidden;
 }
@@ -107,7 +103,7 @@ body {
 }
 
 .glass {
-  background: var(--glass-bg);
+  background: var(--surface);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   border: 1px solid var(--border);
@@ -168,14 +164,14 @@ body {
   gap: 10px;
   padding: 8px 10px;
   border-radius: 9px;
-  color: var(--muted);
+  color: var(--text-2);
   cursor: pointer;
   font-size: 13px;
   transition: background 150ms ease, color 150ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .module-btn:hover {
-  color: var(--fg);
+  color: var(--text);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -192,7 +188,7 @@ body {
   margin: 8px 10px 0;
   font-size: 10px;
   line-height: 1.5;
-  color: var(--muted);
+  color: var(--text-2);
   opacity: 0.7;
 }
 
@@ -218,11 +214,8 @@ body {
   gap: var(--sp-2);
 }
 
-.tb-title {
-  font-size: var(--text-2);
-  font-weight: 500;
-  color: var(--text-2);
-  letter-spacing: 0.02em;
+.tb-logo {
+  color: var(--accent);
 }
 
 /* tombol toolbar — 32px, radius token, hover halus */
@@ -341,7 +334,7 @@ button:focus-visible,
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-2);
   cursor: pointer;
   text-align: left;
 }
@@ -387,7 +380,7 @@ button:focus-visible,
 #panel .caption {
   margin: 0 0 var(--sp-4);
   font-size: var(--text-2);
-  color: var(--muted);
+  color: var(--text-2);
 }
 /* Section inspector — struktur, bukan kartu: judul micro + isi, pemisah border tipis */
 .insp-sec {
@@ -517,7 +510,7 @@ button:focus-visible,
   bottom: 2px;
   left: 0;
   border-radius: 7px;
-  background: color-mix(in srgb, var(--fg) 92%, var(--bg));
+  background: color-mix(in srgb, var(--text) 92%, var(--bg));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1), width 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -527,7 +520,7 @@ button:focus-visible,
   position: relative;
   padding: 4px 14px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--text-2);
   cursor: pointer;
   text-align: center;
 }
@@ -606,7 +599,7 @@ button:focus-visible,
   margin: 12px 0 0;
   font-size: 10px;
   line-height: 1.35;
-  color: var(--muted);
+  color: var(--text-2);
 }
 
 /* ===== Preset chip ===== */
@@ -623,8 +616,8 @@ button:focus-visible,
   padding: 5px 11px;
   font-size: var(--text-2);
   font-weight: 500;
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
   border: 1px solid var(--border);
   border-radius: 999px;
   cursor: pointer;
@@ -656,7 +649,7 @@ button:focus-visible,
 
 .headline-label {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--text-2);
 }
 
 /* skeleton shimmer — empty state hasil sebelum replay selesai */
@@ -664,7 +657,7 @@ button:focus-visible,
   border-radius: 6px;
   height: 12px;
   margin: 6px 0;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--fg) 6%, transparent) 25%, color-mix(in srgb, var(--fg) 12%, transparent) 50%, color-mix(in srgb, var(--fg) 6%, transparent) 75%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text) 6%, transparent) 25%, color-mix(in srgb, var(--text) 12%, transparent) 50%, color-mix(in srgb, var(--text) 6%, transparent) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.2s ease-in-out infinite;
 }
@@ -685,7 +678,7 @@ button:focus-visible,
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-2);
   margin: 10px 0 6px;
 }
 
@@ -694,8 +687,8 @@ select {
   padding: 7px 10px;
   font: inherit;
   font-size: var(--text-1);
-  color: var(--fg);
-  background: var(--glass-bg);
+  color: var(--text);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
   outline: none;
@@ -711,8 +704,8 @@ select {
   padding: 7px 10px;
   font: inherit;
   font-size: var(--text-1);
-  color: var(--fg);
-  background: var(--glass-bg);
+  color: var(--text);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
   cursor: pointer;
@@ -757,7 +750,7 @@ select {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--text-2);
   padding: 2px 4px 8px;
 }
 
@@ -766,7 +759,7 @@ select {
   padding: 10px 12px;
   border-radius: 9px;
   font-size: 13px;
-  color: var(--fg);
+  color: var(--text);
   cursor: pointer;
   transition: background 150ms ease;
 }
@@ -837,7 +830,7 @@ select {
 }
 
 .explain-step:hover {
-  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .explain-step code {
@@ -847,7 +840,7 @@ select {
 
 .explain-step span {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--text-2);
   line-height: 1.4;
 }
 
@@ -856,7 +849,7 @@ select {
   padding: 10px 12px;
   font-size: 12px;
   color: #ff453a;
-  background: color-mix(in srgb, #ff453a 12%, var(--glass-bg));
+  background: color-mix(in srgb, #ff453a 12%, var(--surface));
 }
 
 /* chart host: timeline bawah jadi 3 diagram side-by-side, masing-masing kartu terpisah */

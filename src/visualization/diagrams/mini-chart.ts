@@ -113,7 +113,7 @@ export class MiniChart {
     this.plot.setAttribute('stroke-linejoin', 'round');
 
     this.tip = document.createElementNS(NS, 'line');
-    this.tip.style.stroke = 'var(--muted)';
+    this.tip.style.stroke = 'var(--text-2)';
     this.tip.setAttribute('stroke-width', '0.75');
     this.tip.style.display = 'none';
 
@@ -125,12 +125,12 @@ export class MiniChart {
     this.labelEl = document.createElementNS(NS, 'text');
     this.labelEl.setAttribute('x', '4');
     this.labelEl.setAttribute('y', '11');
-    this.labelEl.style.fill = 'var(--fg)';
+    this.labelEl.style.fill = 'var(--text)';
     this.labelEl.setAttribute('font-size', '11');
     this.labelEl.setAttribute('font-weight', '600');
     const unitEl = document.createElementNS(NS, 'tspan');
     unitEl.textContent = ` ${unit}`;
-    unitEl.style.fill = 'var(--muted)';
+    unitEl.style.fill = 'var(--text-2)';
     unitEl.setAttribute('font-size', '9.5');
     unitEl.setAttribute('font-weight', '400');
     this.labelEl.append(unitEl);
@@ -139,7 +139,7 @@ export class MiniChart {
     this.peakEl = document.createElementNS(NS, 'text');
     this.peakEl.setAttribute('font-size', '9');
     this.peakEl.setAttribute('text-anchor', 'middle');
-    this.peakEl.style.fill = 'var(--muted)';
+    this.peakEl.style.fill = 'var(--text-2)';
     (this.peakEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
     this.peakEl.style.stroke = 'var(--bg)';
     this.peakEl.setAttribute('stroke-width', '3');
@@ -148,7 +148,7 @@ export class MiniChart {
     this.readoutEl = document.createElementNS(NS, 'text');
     this.readoutEl.setAttribute('font-size', '9');
     this.readoutEl.setAttribute('text-anchor', 'middle');
-    this.readoutEl.style.fill = 'var(--fg)';
+    this.readoutEl.style.fill = 'var(--text)';
     this.readoutEl.setAttribute('font-weight', '500');
     (this.readoutEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
     this.readoutEl.style.stroke = 'var(--bg)';
@@ -160,13 +160,13 @@ export class MiniChart {
       this.x0El = document.createElementNS(NS, 'text');
       this.x0El.setAttribute('x', '4');
       this.x0El.setAttribute('y', String(h - 2));
-      this.x0El.style.fill = 'var(--muted)';
+      this.x0El.style.fill = 'var(--text-2)';
       this.x0El.setAttribute('font-size', '9');
       this.x0El.textContent = '0';
       this.axisEl = document.createElementNS(NS, 'text');
       this.axisEl.setAttribute('x', String(w - 4));
       this.axisEl.setAttribute('y', String(h - 2));
-      this.axisEl.style.fill = 'var(--muted)';
+      this.axisEl.style.fill = 'var(--text-2)';
       this.axisEl.setAttribute('font-size', '9');
       this.axisEl.setAttribute('text-anchor', 'end');
       this.axisEl.textContent = '';
