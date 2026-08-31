@@ -144,10 +144,10 @@ export function buildBeamPanel(
   // §7: skala deformasi ×N — user override terhadap auto-scale (default ×1.0).
   const deformRow = sliderRow('Skala deformasi', 1, 5, 0.5, () => params.deformScale, (v) => { params.deformScale = v; }, (v) => `×${v.toFixed(1)}`);
 
-  // Susun ke section: GEOMETRI / BEBAN / TAMPILAN / TUMPAN / MATERIAL (diisi saat kontrol dibuat)
+  // Susun ke section: GEOMETRI / BEBAN / TAMPILAN / TUMPUAN / MATERIAL (diisi saat kontrol dibuat)
   const secLoad = section('BEBAN');
   const secDisp = section('TAMPILAN');
-  const secSup = section('TUMPAN');
+  const secSup = section('TUMPUAN');
   const secMat = section('MATERIAL & PENAMPANG');
 
   // Sinkron seluruh kontrol UI ke state params (dipakai preset chip & restore).
@@ -236,10 +236,7 @@ export function buildBeamPanel(
 
   // Replay dihapus dari panel (keputusan redesign) — Space tetap jalan dari main.ts.
 
-  // Blok hasil (skeleton shimmer sampai solve pertama selesai)
-  const resultDiv = document.createElement('div');
-  resultDiv.className = 'panel-div';
-  root.append(resultDiv);
+  // Blok hasil (skeleton shimmer sampai solve pertama selesai) — satu border-top dari .result-block.
   const results = document.createElement('div');
   results.className = 'result-block';
   for (let i = 0; i < 3; i++) {

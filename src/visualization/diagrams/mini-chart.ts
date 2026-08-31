@@ -139,9 +139,9 @@ export class MiniChart {
     this.peakEl = document.createElementNS(NS, 'text');
     this.peakEl.setAttribute('font-size', '9');
     this.peakEl.setAttribute('text-anchor', 'middle');
-    this.peakEl.style.fill = 'var(--text-2)';
+    this.peakEl.style.fill = 'var(--text)';
     (this.peakEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
-    this.peakEl.style.stroke = 'var(--bg)';
+    this.peakEl.style.stroke = 'var(--surface-2)';
     this.peakEl.setAttribute('stroke-width', '3');
 
     // Readout hover (declutter 14): nilai @ posisi, mengikuti titik — bukan di sumbu.
@@ -151,7 +151,7 @@ export class MiniChart {
     this.readoutEl.style.fill = 'var(--text)';
     this.readoutEl.setAttribute('font-weight', '500');
     (this.readoutEl.style as CSSStyleDeclaration & { paintOrder: string }).paintOrder = 'stroke';
-    this.readoutEl.style.stroke = 'var(--bg)';
+    this.readoutEl.style.stroke = 'var(--surface-2)';
     this.readoutEl.setAttribute('stroke-width', '3');
     this.readoutEl.style.display = 'none';
 

@@ -50,6 +50,12 @@ export class IOSPicker {
       card.append(b);
     }
     sheet.append(card);
+    // Anchor dropdown: card fixed tepat di bawah tombol pemicu (bukan bottom sheet tengah).
+    const r = this.el.getBoundingClientRect();
+    card.style.position = 'fixed';
+    card.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 80)}px`;
+    card.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 260))}px`;
+    card.style.width = `${Math.max(r.width, 240)}px`;
     sheet.addEventListener('click', (e) => {
       if (e.target === sheet) this.close();
     });

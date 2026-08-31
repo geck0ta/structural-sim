@@ -302,11 +302,6 @@ button:focus-visible,
 }
 
 /* divider tipis antar grup (P9: cukup 1 sebelum hasil) */
-.panel-div {
-  margin: var(--sp-4) 0 var(--sp-3);
-  height: 1px;
-  background: var(--border);
-}
 
 /* P8: 2 picker sejajar */
 .pick-grid {
@@ -350,11 +345,27 @@ button:focus-visible,
 }
 
 .accordion-h.assum {
-  font-size: 9.5px;
-  font-weight: 400;
+  font-size: 10px;
+  font-weight: 600; /* semi-bold: otoritas sub-judul (isi bullet 400) */
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
   margin-top: 6px;
+}
+
+.accordion-h svg {
+  flex: none; /* chevron tak termampatkan */
+}
+
+.accordion-h span {
+  line-height: 1.2; /* tinggi stabil → chevron center vertikal presisi */
+}
+
+/* bullet sejajar kiri: • tepat di bawah huruf "A" Asumsi (bukan indent 40px default) */
+.assum-list {
+  margin: 2px 0 0;
+  padding-left: 12px;
+  display: grid;
+  gap: 3px;
 }
 
 /* P6: 2 headline sejajar */
@@ -449,8 +460,8 @@ button:focus-visible,
 }
 
 .result-block {
-  margin-top: 6px;
-  padding-top: 12px;
+  margin-top: 4px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
@@ -461,7 +472,7 @@ button:focus-visible,
   left: 72px;  /* rail 48 + 12 + 12 */
   right: 324px; /* inspector 300 + 12 + 12 */
   bottom: 12px;
-  height: 172px; /* status bar 36 + charts + gap */
+  /* tinggi = isi (statusbar 36 + charts) — band kosong di atas dihapus */
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -471,12 +482,12 @@ button:focus-visible,
 
 /* Status bar instrumen — metrik kunci, selalu terlihat */
 #statusbar {
-  height: 36px; /* ruang napas: metrik tak menempel tepi bawah layar */
+  height: 36px;
   display: flex;
-  align-items: center;
+  align-items: baseline; /* satu garis dasar: SF 4.50 sejajar ↓ 12.1 mm */
   gap: var(--sp-4);
-  padding: 0 var(--sp-3);
-  font-size: var(--text-1); /* naikkan keterbacaan dari text-2 */
+  padding: 0 var(--sp-3) 4px;
+  font-size: var(--text-1);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
   border-bottom: 1px solid var(--border);
@@ -729,18 +740,14 @@ select {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.32);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px;
+  background: transparent; /* dropdown anchored, bukan modal — chart tak tertutup dim */
 }
 
 .picker-card {
-  width: min(360px, 100%);
-  max-height: 70vh;
+  position: fixed; /* posisi dihitung JS dari rect tombol pemicu */
+  max-height: 50vh;
   overflow-y: auto;
-  padding: 14px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
