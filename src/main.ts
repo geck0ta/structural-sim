@@ -458,22 +458,6 @@ async function main(): Promise<void> {
   };
 
   // Toast kecil: modul belum aktif (backlog #14)
-  const toast = document.createElement('div');
-  toast.id = 'toast';
-  toast.className = 'glass';
-  document.body.append(toast);
-  let toastTimer: number | undefined;
-  const showToast = (msg: string): void => {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1800);
-  };
-  nav.querySelectorAll<HTMLButtonElement>(".module-btn[aria-disabled='true']").forEach((b) => {
-    const label = b.querySelector('span')?.textContent ?? 'Modul';
-    b.addEventListener('click', () => showToast(`${label} aktif di fase berikutnya.`));
-  });
-
   applySolution();
 }
 

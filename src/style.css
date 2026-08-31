@@ -694,30 +694,7 @@ button:focus-visible,
 }
 
 .big-num.warn {
-  color: #ff453a;
-}
-
-/* ===== Toast ===== */
-
-#toast {
-  position: fixed;
-  left: 50%;
-  top: 12px;
-  transform: translateX(-50%) translateY(-8px) scale(0.96);
-  padding: 7px 14px;
-  max-width: 420px; /* P14: tak melebar penuh */
-  font-size: 12px;
-  color: var(--fg);
-  border-radius: 999px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
-  z-index: 30;
-}
-
-#toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
+  color: var(--danger);
 }
 
 /* ===== PHASE 3: Beam Lab ===== */
@@ -965,26 +942,6 @@ select {
 
 .skip-link:focus {
   top: 12px;
-}
-
-/* entrance spring: sidebar → panel → timeline, stagger 60ms */
-@keyframes rise-in {
-  from {
-    transform: translateY(12px);
-    opacity: 0;
-  }
-}
-
-#sidebar {
-  animation: rise-in 420ms cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-#panel {
-  animation: rise-in 420ms cubic-bezier(0.32, 0.72, 0, 1) 60ms both;
-}
-
-#timeline {
-  animation: rise-in 420ms cubic-bezier(0.32, 0.72, 0, 1) 120ms both;
 }
 
 @media (max-width: 1200px) {
