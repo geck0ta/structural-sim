@@ -222,6 +222,7 @@ export function buildBeamPanel(
   const pickGrid = document.createElement('div');
   pickGrid.className = 'pick-grid';
   pickGrid.append(matPicker.el, secPicker.el);
+  secGeo.append(spanRow.row);
   secMat.append(pickGrid);
   root.append(secGeo, secLoad, secDisp, secSup, secMat);
 

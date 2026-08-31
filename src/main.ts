@@ -173,18 +173,19 @@ async function main(): Promise<void> {
     reopenBtn.style.display = 'none';
     document.body.classList.add('panel-open');
   });
-  // X tutup panel — header area panel (absolute, 32px hit).
+  panelHost.append(panel.el);
+  // X tutup inspector di toolbar (kanan, sebelah reset/tema) — tak ikut scroll konten.
   const panelClose = document.createElement('button');
   panelClose.type = 'button';
   panelClose.className = 'panel-close';
   panelClose.setAttribute('aria-label', 'Tutup panel');
-  panelClose.append(icon('x', 14));
+  panelClose.append(icon('x', 16));
   panelClose.addEventListener('click', () => {
     document.body.classList.remove('panel-open');
     panelHost.style.transform = 'translateX(calc(100% + 24px))';
+    panelClose.style.display = 'none';
     reopenBtn.style.display = '';
   });
-  panelHost.append(panelClose, panel.el);
   document.body.append(panelHost);
 
   // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
@@ -276,8 +277,8 @@ async function main(): Promise<void> {
   resetBtn.append(icon('scan', 18));
   const resetView = (): void => sm.fitTo(params.span, view.beamCenterY);
   resetBtn.addEventListener('click', resetView);
-  // Panel reopen + reset kamera + tema — satu sistem.
-  tbRight.append(reopenBtn, resetBtn, themeBtn);
+  // Panel reopen + reset kamera + tema + tutup inspector — satu sistem di toolbar.
+  tbRight.append(panelClose, reopenBtn, resetBtn, themeBtn);
   toolbar.append(tbLeft, tbRight);
   document.body.append(toolbar);
 

@@ -232,22 +232,17 @@ body {
   background: color-mix(in srgb, var(--text) 12%, transparent);
 }
 
-/* X tutup panel — sama sistem: 32px, radius token */
+/* X tutup inspector — di toolbar, 32px hit (satu sistem dengan tb-btn) */
 .panel-close {
-  position: absolute;
-  top: 50%;
-  right: var(--sp-2);
-  transform: translateY(-50%);
   width: var(--h-ctl);
   height: var(--h-ctl);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--r-ctl);
   background: transparent;
-  color: var(--text-2);
+  color: var(--text);
   cursor: pointer;
   display: grid;
   place-items: center;
-  z-index: 12;
 }
 
 .panel-close:hover {
