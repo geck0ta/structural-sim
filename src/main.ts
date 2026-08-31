@@ -9,7 +9,7 @@ import type { BeamLoad } from './structural/beam/beam-solver';
 import type { ChartData } from './visualization/diagrams/mini-chart';
 import { MATERIALS } from './data/materials';
 import { SECTION_PRESETS } from './structural/models/section';
-import { fmtForce, fmtMoment, fmtLength } from './core/units';
+import { fmtForce, fmtMoment, fmtLength, fmtStress } from './core/units';
 import { icon, ensureSprite } from './ui/glass/icons';
 
 // PHASE 3 — Lab Balok 3D: satu solver → 3D (medium utama) + 3 diagram SVG + panel hasil.
@@ -138,13 +138,21 @@ async function main(): Promise<void> {
 
   const timeline = document.createElement('footer');
   timeline.id = 'timeline';
+  // Status bar instrumen: metrik kunci selalu terlihat, sekalipun inspector ditutup.
+  const statusbar = document.createElement('div');
+  statusbar.id = 'statusbar';
+  const stDefl = document.createElement('span');
+  const stStress = document.createElement('span');
+  const stSF = document.createElement('span');
+  const stEq = document.createElement('span');
+  statusbar.append(stDefl, stStress, stSF, stEq);
   const chartsRow = document.createElement('div');
   chartsRow.className = 'charts-row';
   chartsRow.append(charts.shear.el, charts.moment.el, charts.deflect.el);
-  timeline.append(chartsRow);
+  timeline.append(statusbar, chartsRow);
   document.body.append(timeline);
 
-  // ===== Panel kanan =====
+  // ===== Panel kanan (inspector) =====
   const panelHost = document.createElement('aside');
   panelHost.id = 'panel';
   panelHost.className = 'glass';
@@ -153,7 +161,19 @@ async function main(): Promise<void> {
     scheduleSolve();
   };
   const panel = buildBeamPanel(params, () => scheduleSolve());
-  // Tombol tutup panel — fixed di pojok (di ATAS panel, tak ikut scroll konten).
+  // Tombol buka balik panel (di toolbar, hanya saat panel ditutup).
+  const reopenBtn = document.createElement('button');
+  reopenBtn.type = 'button';
+  reopenBtn.className = 'tb-btn';
+  reopenBtn.style.display = 'none';
+  reopenBtn.setAttribute('aria-label', 'Buka panel');
+  reopenBtn.append(icon('sliders-horizontal', 16));
+  reopenBtn.addEventListener('click', () => {
+    panelHost.style.transform = '';
+    reopenBtn.style.display = 'none';
+    document.body.classList.add('panel-open');
+  });
+  // X tutup panel — header area panel (absolute, 32px hit).
   const panelClose = document.createElement('button');
   panelClose.type = 'button';
   panelClose.className = 'panel-close';
@@ -164,23 +184,7 @@ async function main(): Promise<void> {
     panelHost.style.transform = 'translateX(calc(100% + 24px))';
     reopenBtn.style.display = '';
   });
-  document.body.append(panelClose);
-  // Tombol buka balik panel (muncul hanya saat panel ditutup).
-  const reopenBtn = document.createElement('button');
-  reopenBtn.type = 'button';
-  reopenBtn.className = 'theme-float reopen';
-  reopenBtn.style.display = 'none';
-  reopenBtn.style.right = '12px';
-  reopenBtn.style.top = '14px';
-  reopenBtn.setAttribute('aria-label', 'Buka panel');
-  reopenBtn.append(icon('sliders-horizontal', 16));
-  reopenBtn.addEventListener('click', () => {
-    panelHost.style.transform = '';
-    reopenBtn.style.display = 'none';
-    document.body.classList.add('panel-open');
-  });
-  document.body.append(reopenBtn);
-  panelHost.append(panel.el);
+  panelHost.append(panelClose, panel.el);
   document.body.append(panelHost);
 
   // Toggle ribbon Matematika (tampil di panel, bukan sidebar)
@@ -227,10 +231,10 @@ async function main(): Promise<void> {
   panelToggle.addEventListener('click', () => document.body.classList.toggle('panel-open'));
   sidebar.append(panelToggle);
 
-  // ===== Toggle tema — tombol floating pojok kanan atas viewport (bukan di sidebar) =====
+  // ===== Toggle tema — tombol toolbar (sistem sama dengan reset/reopen) =====
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
-  themeBtn.className = 'theme-float';
+  themeBtn.className = 'tb-btn';
   themeBtn.setAttribute('aria-label', 'Ganti tema terang/gelap');
   themeBtn.append(icon('sun-moon', 18));
   const applyTheme = (light: boolean): void => {
@@ -250,20 +254,32 @@ async function main(): Promise<void> {
   themeBtn.addEventListener('click', () => {
     applyTheme(document.documentElement.dataset.theme !== 'light');
   });
-  document.body.append(themeBtn);
   document.body.append(sidebar);
 
-  // Tombol reset view (floating, sebelah tema) — kamera balik fit default.
+  // ===== Toolbar atas 44px — satu rumah untuk brand tipis + viewport tools + tema =====
+  const toolbar = document.createElement('header');
+  toolbar.id = 'toolbar';
+  const tbLeft = document.createElement('div');
+  tbLeft.className = 'tb-group';
+  const tbTitle = document.createElement('span');
+  tbTitle.className = 'tb-title';
+  tbTitle.textContent = 'Structural Lab · Mekanika Struktur'; // satu-satunya brand, tipis
+  tbLeft.append(tbTitle);
+  const tbRight = document.createElement('div');
+  tbRight.className = 'tb-group';
+  // Reset kamera — tinggi/radius/icon sama dengan tema (32px token).
   const resetBtn = document.createElement('button');
   resetBtn.type = 'button';
-  resetBtn.className = 'theme-float';
-  resetBtn.style.right = 'calc(324px + 42px)';
+  resetBtn.className = 'tb-btn';
   resetBtn.setAttribute('aria-label', 'Reset tampilan kamera (R)');
   resetBtn.title = 'Reset tampilan (R)';
   resetBtn.append(icon('scan', 18));
   const resetView = (): void => sm.fitTo(params.span, view.beamCenterY);
   resetBtn.addEventListener('click', resetView);
-  document.body.append(resetBtn);
+  // Panel reopen + reset kamera + tema — satu sistem.
+  tbRight.append(reopenBtn, resetBtn, themeBtn);
+  toolbar.append(tbLeft, tbRight);
+  document.body.append(toolbar);
 
   // Keyboard shortcut: R = reset view, Space = replay (bukan saat fokus input).
   document.addEventListener('keydown', (e) => {
@@ -275,71 +291,6 @@ async function main(): Promise<void> {
       replay();
     }
   });
-
-  // Orbit hint — fade setelah interaksi pointer pertama di kanvas.
-  const hint = document.createElement('div');
-  hint.className = 'orbit-hint';
-  hint.textContent = 'Drag untuk memutar · scroll untuk zoom';
-  document.body.append(hint);
-
-  // P13: hint keyboard permanen — discoverability shortcut.
-  const kbdHint = document.createElement('div');
-  kbdHint.className = 'kbd-hint';
-  kbdHint.innerHTML = '<kbd>R</kbd> reset view · <kbd>Space</kbd> ulang animasi';
-  document.body.append(kbdHint);
-
-  // F12: export viewport → PNG (tombol floating, sebelah reset).
-  const shotBtn = document.createElement('button');
-  shotBtn.type = 'button';
-  shotBtn.className = 'theme-float';
-  shotBtn.style.right = 'calc(324px + 84px)';
-  shotBtn.setAttribute('aria-label', 'Simpan tangkapan viewport PNG');
-  shotBtn.title = 'Simpan PNG';
-  shotBtn.append(icon('camera', 18));
-  shotBtn.addEventListener('click', () => {
-    // pastikan frame terbaru ada di buffer (preserveDrawingBuffer: true)
-    sm.renderer.render(sm.scene, sm.camera);
-    const c = document.getElementById('canvas3d') as HTMLCanvasElement | null;
-    if (!c) return;
-    const a = document.createElement('a');
-    a.href = c.toDataURL('image/png');
-    a.download = `structural-lab-${Date.now()}.png`;
-    a.click();
-  });
-  document.body.append(shotBtn);
-  // F13b: tombol share — URL state ke clipboard (toast konfirmasi).
-  const shareBtn = document.createElement('button');
-  shareBtn.type = 'button';
-  shareBtn.className = 'theme-float';
-  shareBtn.style.right = 'calc(324px + 126px)';
-  shareBtn.setAttribute('aria-label', 'Salin link bagikan');
-  shareBtn.title = 'Salin link';
-  shareBtn.append(icon('share-2', 18));
-  shareBtn.addEventListener('click', async () => {
-    const q = new URLSearchParams({
-      span: String(params.span),
-      p: String(params.loadP / 1000),
-      mat: params.materialId,
-      sec: params.sectionId,
-      sup: params.support,
-      lt: params.loadType,
-    });
-    if (params.loadType === 'point') q.set('at', String(params.loadAt));
-    try {
-      await navigator.clipboard.writeText(`${location.origin}${location.pathname}?${q}`);
-      showToast('Link disalin ke clipboard');
-    } catch { /* clipboard diblokir */ }
-  });
-  document.body.append(shareBtn);
-
-  const killHint = (): void => {
-    hint.classList.add('hide');
-    document.getElementById('canvas3d')?.removeEventListener('pointerdown', killHint);
-    window.removeEventListener('keydown', killHint, true);
-    setTimeout(() => hint.remove(), 600);
-  };
-  document.getElementById('canvas3d')?.addEventListener('pointerdown', killHint);
-  window.addEventListener('keydown', killHint, true);
 
   // ===== Solve + wire =====
   let solveScheduled = false;
@@ -390,6 +341,13 @@ async function main(): Promise<void> {
     view.matId = params.materialId;
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
+    // Status bar instrumen — metrik kunci + keseimbangan (selalu terlihat).
+    stDefl.textContent = `δ ${fmtLength(sol.maxDeflection.value)}`;
+    stStress.textContent = `σ ${fmtStress(sol.maxBendingStress)}`;
+    stSF.textContent = sol.safetyFactor === Infinity ? 'SF ∞' : `SF ${sol.safetyFactor.toPrecision(3)}`;
+    stSF.classList.toggle('warn', sol.safetyFactor < 1.5);
+    stEq.textContent = sol.equilibrium.ok ? '✓ setimbang' : '✗ tak setimbang';
+    stEq.classList.toggle('bad', !sol.equilibrium.ok);
     saveParams();
     // Kamera hanya re-fit saat geometri berubah — bukan tiap geser slider beban.
     if (geoChanged) sm.fitTo(params.span, view.beamCenterY);
