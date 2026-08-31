@@ -3,7 +3,6 @@
 export class IOSSlider {
   private readonly root: HTMLDivElement;
   private readonly fill: HTMLDivElement;
-  private readonly bubble: HTMLDivElement;
   private dragging = false;
   private val: number;
 
@@ -11,9 +10,9 @@ export class IOSSlider {
     private min: number,
     private max: number,
     private readonly step: number,
-    initial: number,
-    private readonly format: (v: number) => string,
-    private readonly onInput: (v: number) => void,
+ initial: number,
+ _format: (v: number) => string, // value ditampilkan di label baris (pola instrumen), bukan bubble
+ private readonly onInput: (v: number) => void,
     ariaLabel: string,
   ) {
     this.val = initial;
@@ -29,9 +28,7 @@ export class IOSSlider {
     this.fill.className = 'ios-slider-fill';
     const thumb = document.createElement('div');
     thumb.className = 'ios-slider-thumb';
-    this.bubble = document.createElement('div');
-    this.bubble.className = 'ios-slider-bubble';
-    this.root.append(this.fill, thumb, this.bubble);
+    this.root.append(this.fill, thumb);
 
     this.root.addEventListener('pointerdown', (e) => {
       this.dragging = true;
@@ -73,8 +70,6 @@ export class IOSSlider {
     this.root.setAttribute('aria-valuenow', String(this.val));
     this.root.style.setProperty('--t', `${t * 100}%`);
     this.fill.style.width = `${t * 100}%`;
-    this.bubble.textContent = this.format(this.val);
-    this.bubble.style.left = `calc(${t * 100}% )`;
     if (notify) this.onInput(this.val);
   }
 
