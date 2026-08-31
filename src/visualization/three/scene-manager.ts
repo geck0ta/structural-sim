@@ -131,9 +131,9 @@ export class SceneManager {
       (sp as THREE.Sprite).material.opacity = mode === 'dusk' ? 0.42 : 0.5;
     }
     if (mode === 'dusk') {
-      // Matahari senja: turun ke horizon, oranye; awan senja muncul.
+      // Matahari senja: rendah di horizon, di dalam frame kamera default (theta=0).
       this.sun.visible = true;
-      this.sun.position.set(0.92, 0.16, -0.35).normalize().multiplyScalar(128);
+      this.sun.position.set(0.5, 0.1, -0.86).normalize().multiplyScalar(128);
       (this.sun.children[0] as THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>).material.color.set(0xffb46b);
       this.sun.scale.setScalar(1.35);
     } else {
@@ -241,10 +241,11 @@ export class SceneManager {
         this.clouds.add(sp);
       }
     };
-    // 3 bawan kecil di kiri/kanan horizon — overlay JANGAN besar (2 ruas viewport atas).
-    cloudCluster(-58, 46, -72, 6, 10);
-    cloudCluster(26, 52, -80, 5, 12);
-    cloudCluster(72, 40, -58, 6, 9);
+    // 3 bawan kecil di horizon — JANGAN besar, dan dalam frame kamera default (y rendah,
+    // |x| ≤ ~55): 2 ruas viewport atas, tidak menutup model.
+    cloudCluster(-48, 30, -70, 6, 10);
+    cloudCluster(20, 34, -78, 5, 12);
+    cloudCluster(56, 28, -60, 6, 9);
     this.scene.add(this.clouds);
   }
 
