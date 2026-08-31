@@ -371,7 +371,7 @@ async function main(): Promise<void> {
     view.setBeam(section(), params.span, params.support);
     panel.showResults(sol);
     // Status bar instrumen — metrik kunci + keseimbangan (selalu terlihat).
-    stDefl.textContent = `δ ${fmtLength(sol.maxDeflection.value)}`;
+    stDefl.textContent = `↓ ${fmtLength(Math.abs(sol.maxDeflection.value))}`;
     stStress.textContent = `σ ${fmtStress(sol.maxBendingStress)}`;
     stSF.textContent = sol.safetyFactor === Infinity ? 'SF ∞' : `SF ${sol.safetyFactor.toPrecision(3)}`;
     stSF.classList.toggle('warn', sol.safetyFactor < 1.5);

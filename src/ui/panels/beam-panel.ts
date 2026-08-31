@@ -174,7 +174,6 @@ export function buildBeamPanel(
     loadRow.row.style.display = v === 'point' ? '' : 'none';
     loadWRow.row.style.display = v === 'udl' ? '' : 'none';
     posSlider.row.style.display = v === 'point' ? '' : 'none';
-    loadTypeLabel.textContent = v === 'point' ? 'Beban titik P' : 'Beban merata w';
   };
   const loadTypeSeg = new SegmentedControl(
     [
@@ -188,7 +187,7 @@ export function buildBeamPanel(
     },
   );
   if ((params.loadType ?? 'point') === 'udl') applyLoadType('udl');
-  secLoad.append(loadTypeLabel, loadTypeSeg.el, loadRow.row, posSlider!.row);
+  secLoad.append(loadTypeLabel, loadTypeSeg.el, loadRow.row, loadWRow.row, posSlider!.row);
   secDisp.append(deformRow.row);
 
   // Tumpuan
