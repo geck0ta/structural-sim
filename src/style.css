@@ -5,7 +5,7 @@
   --fg: #f5f5f7;
   --muted: #98a0a8;
   --accent: #0a84ff;
-  --border: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.06); /* P11: lebih redup — kaca, bukan kotak */
   --glass-bg: rgba(22, 25, 29, 0.78);
   --glass-blur: 18px;
   --radius: 14px;
@@ -208,6 +208,26 @@ body::after {
   opacity: 0;
 }
 
+/* P13: hint keyboard permanen pojok kiri bawah — discoverability */
+.kbd-hint {
+  position: fixed;
+  left: 14px;
+  bottom: 10px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.kbd-hint kbd {
+  font: 9.5px/1 ui-monospace, monospace;
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-right: 2px;
+}
+
 .module-btn:focus-visible,
 button:focus-visible,
 [role='slider']:focus-visible {
@@ -225,6 +245,7 @@ button:focus-visible,
   width: 284px;
   padding: 14px 14px 20px;
   overflow-y: auto;
+  overflow-x: hidden; /* P5: scrollbar horizontal dibunuh — angka di-wrap */
   z-index: 10;
   scrollbar-width: thin;
 }
@@ -252,11 +273,76 @@ button:focus-visible,
   transform-origin: left center;
 }
 
-/* divider tipis antar grup (declutter: tanpa teks header) */
+/* divider tipis antar grup (P9: cukup 1 sebelum hasil) */
 .panel-div {
   margin: 14px 0 12px;
   height: 1px;
   background: var(--border);
+}
+
+/* P8: 2 picker sejajar */
+.pick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pick-grid .picker-btn {
+  width: 100%;
+  font-size: 11px;
+  padding: 7px 9px;
+}
+
+/* P1/P2: accordion header — baris toggle ringan, bukan heading berat */
+.accordion-h {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.accordion-h svg {
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.accordion-h.open svg {
+  transform: rotate(180deg);
+}
+
+.accordion-h.assum {
+  font-size: 9.5px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 6px;
+}
+
+/* P6: 2 headline sejajar */
+.headline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.headline-grid .headline {
+  margin-bottom: 0;
+}
+
+.headline .big-num {
+  font-size: 22px; /* P12: dua kolom sempit — 28px tak muat */
 }
 
 #panel h2 {
@@ -308,7 +394,7 @@ button:focus-visible,
 }
 
 .big-num {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -542,10 +628,6 @@ button:focus-visible,
   color: var(--muted);
 }
 
-.headline .big-num {
-  font-size: 28px;
-}
-
 /* skeleton shimmer — empty state hasil sebelum replay selesai */
 .skeleton {
   border-radius: 6px;
@@ -572,8 +654,9 @@ button:focus-visible,
   left: 50%;
   top: 12px;
   transform: translateX(-50%) translateY(-8px) scale(0.96);
-  padding: 8px 16px;
-  font-size: 12.5px;
+  padding: 7px 14px;
+  max-width: 420px; /* P14: tak melebar penuh */
+  font-size: 12px;
   color: var(--fg);
   border-radius: 999px;
   opacity: 0;
@@ -812,7 +895,7 @@ select {
 
 .charts-row .minichart {
   flex: 1;
-  height: 84px;
+  height: 76px; /* P10: strip ramping — viewport 3D lebih tinggi */
   min-width: 0;
   display: block;
   overflow: visible;

@@ -44,7 +44,6 @@ export function buildBeamPanel(
   cap.className = 'caption';
   cap.textContent = 'Geser slider — 3D, diagram, dan angka berubah bersamaan.';
   root.append(h, cap);
-
   // Preset kasus umum → satu picker "Contoh kasus" (declutter: bukan 3 chip wrap)
   const onChipClick: Array<() => void> = [];
   const presets = [
@@ -94,10 +93,7 @@ export function buildBeamPanel(
   modeRow.append(modeSeg.el, mathRow);
   root.append(modeRow);
 
-  // Divider parameter (declutter: teks header dihapus, spacing cukup)
-  const paramDiv = document.createElement('div');
-  paramDiv.className = 'panel-div';
-  root.append(paramDiv);
+  // P9: divider hanya sebelum blok hasil — spacing murni untuk sisanya.
 
   const sliderRow = (
     label: string,
@@ -196,10 +192,7 @@ export function buildBeamPanel(
   );
   root.append(supLabel, supSeg.el);
 
-  // Material & penampang — iOS picker sheet (konsisten glass, bukan <select> native)
-  const matLabel = document.createElement('div');
-  matLabel.className = 'param-label';
-  matLabel.textContent = 'Material';
+  // Material & penampang — 2 picker sejajar (P8), label cukup sebagai title sheet (P3)
   const matPicker = new IOSPicker(
     Object.entries(MATERIALS).map(([id, m]) => ({ id, label: m.name })),
     params.materialId,
@@ -209,11 +202,6 @@ export function buildBeamPanel(
     },
     'Pilih material',
   );
-  root.append(matLabel, matPicker.el);
-
-  const secLabel = document.createElement('div');
-  secLabel.className = 'param-label';
-  secLabel.textContent = 'Penampang';
   const secPicker = new IOSPicker(
     SECTION_PRESETS.map((s) => ({ id: s.id, label: s.name })),
     params.sectionId,
@@ -223,21 +211,24 @@ export function buildBeamPanel(
     },
     'Pilih penampang',
   );
-  root.append(secLabel, secPicker.el);
+  const pickGrid = document.createElement('div');
+  pickGrid.className = 'pick-grid';
+  pickGrid.append(matPicker.el, secPicker.el);
+  root.append(pickGrid);
 
-  // Tombol replay: main/pause morph (rotate-ccw ↔ pause) saat animasi jalan.
+  // Tombol replay: ikon kompak "Ulang" (P4 — bukan 1 baris penuh)
   const replayBtn = document.createElement('button');
   replayBtn.type = 'button';
   replayBtn.className = 'replay-btn';
-  const rIcon = icon('rotate-ccw', 15);
+  const rIcon = icon('rotate-ccw', 14);
   const rl = document.createElement('span');
-  rl.textContent = 'Putar ulang animasi';
+  rl.textContent = 'Ulang';
   replayBtn.append(rIcon, rl);
   replayBtn.addEventListener('click', () => onReplay());
   /** Morph ikon+label replay↔pause (dipanggil main.ts saat animasi mulai/berhenti). */
   const setReplayState = (playing: boolean): void => {
-    rIcon.replaceWith(icon(playing ? 'pause' : 'rotate-ccw', 15));
-    rl.textContent = playing ? 'Jeda animasi' : 'Putar ulang animasi';
+    rIcon.replaceWith(icon(playing ? 'pause' : 'rotate-ccw', 14));
+    rl.textContent = playing ? 'Jeda' : 'Ulang';
   };
   root.append(replayBtn);
 
@@ -255,19 +246,41 @@ export function buildBeamPanel(
   }
   root.append(results);
 
-  // Blok Explain (hidden default)
+  // Blok Explain (hidden default). P1: langkah = accordion default TUTUP; P2: asumsi collapse.
   const explainBlock = document.createElement('div');
   explainBlock.className = 'result-block explain-block';
   explainBlock.style.display = 'none';
-  const eh = document.createElement('h3');
-  eh.textContent = 'Langkah perhitungan';
+  const eh = document.createElement('button');
+  eh.type = 'button';
+  eh.className = 'accordion-h';
+  eh.setAttribute('aria-expanded', 'false');
+  eh.append(icon('chevron-down', 13), Object.assign(document.createElement('span'), { textContent: 'Langkah perhitungan' }));
   const explainSteps = document.createElement('div');
   explainSteps.className = 'explain-steps';
-  // §11: asumsi ditampilkan di Explain mode
-  const assum = document.createElement('p');
-  assum.className = 'caption';
-  assum.textContent = 'Asumsi: linear elastis · small displacement (tanpa P-Δ) · Euler-Bernoulli (tanpa shear deformation) · plane sections remain plane · sambungan rigid.';
-  explainBlock.append(eh, explainSteps, assum);
+  explainSteps.hidden = true;
+  eh.addEventListener('click', () => {
+    const open = Boolean(explainSteps.hidden);
+    explainSteps.style.display = open ? '' : 'none';
+    eh.setAttribute('aria-expanded', String(open));
+    eh.classList.toggle('open', open);
+  });
+  // §11: asumsi collapse — satu baris toggle, detail expandable (P2)
+  const assumBtn = document.createElement('button');
+  assumBtn.type = 'button';
+  assumBtn.className = 'accordion-h assum';
+  assumBtn.setAttribute('aria-expanded', 'false');
+  assumBtn.append(icon('chevron-down', 12), Object.assign(document.createElement('span'), { textContent: 'Asumsi: linear elastis · tanpa P-Δ · Euler-Bernoulli' }));
+  const assumDetail = document.createElement('p');
+  assumDetail.className = 'caption';
+  assumDetail.hidden = true;
+  assumDetail.textContent = 'Linear elastis · small displacement (tanpa P-Δ) · Euler-Bernoulli (tanpa shear deformation) · plane sections remain plane · sambungan rigid.';
+  assumBtn.addEventListener('click', () => {
+    const open = Boolean(assumDetail.hidden);
+    assumDetail.style.display = open ? '' : 'none';
+    assumBtn.setAttribute('aria-expanded', String(open));
+    assumBtn.classList.toggle('open', open);
+  });
+  explainBlock.append(eh, explainSteps, assumBtn, assumDetail);
   root.append(explainBlock);
 
   // §11: disclaimer tunggal (satu baris kecil, bukan kartu)
@@ -289,7 +302,7 @@ export function buildBeamPanel(
   };
 
   const showResults = (sol: BeamSolution): void => {
-    // Headline: dua angka utama paling besar, sisanya row biasa (hierarki).
+    // P6: 2 headline sejajar grid — tinggi blok turun. P7: D/C jadi suffix baris SF.
     const headline = (label: string, value: string, warn = false): HTMLDivElement => {
       const d = document.createElement('div');
       d.className = 'headline';
@@ -302,15 +315,20 @@ export function buildBeamPanel(
       d.append(l, v);
       return d;
     };
-    results.replaceChildren(
+    const grid = document.createElement('div');
+    grid.className = 'headline-grid';
+    grid.append(
       headline('δ maks', fmtLength(sol.maxDeflection.value)),
       headline('σ lentur', fmtStress(sol.maxBendingStress), sol.maxBendingStress > MATERIALS[params.materialId]!.yieldStrength),
+    );
+    const dc = sol.safetyFactor === Infinity ? '' : ` · D/C ${(1 / sol.safetyFactor).toPrecision(3)}${1 / sol.safetyFactor > 1 ? ' — LEBIH' : ''}`;
+    results.replaceChildren(
+      grid,
       row('Reaksi Ra', fmtForce(sol.reactions.Ra)),
       sol.reactions.Rb !== 0 || params.support === 'ss' ? row('Reaksi Rb', fmtForce(sol.reactions.Rb)) : row('Momen jepit Ma', fmtMoment(sol.reactions.Ma)),
       row('M maks', fmtMoment(sol.maxMoment.value)),
       row('V maks', fmtForce(sol.maxShear.value)),
-      row('Safety factor', sol.safetyFactor === Infinity ? '∞' : `${sol.safetyFactor.toPrecision(3)}`, sol.safetyFactor < 1.5 ? 'warn' : ''),
-      ...(sol.safetyFactor === Infinity ? [] : [row('Utilisasi D/C', `${(1 / sol.safetyFactor).toPrecision(3)}${1 / sol.safetyFactor > 1 ? ' — LEBIH' : ''}`, 1 / sol.safetyFactor > 1 ? 'warn' : 1 / sol.safetyFactor > 0.5 ? 'warn' : '')]),
+      row(`Safety factor${dc}`, sol.safetyFactor === Infinity ? '∞' : `${sol.safetyFactor.toPrecision(3)}`, sol.safetyFactor < 1.5 ? 'warn' : ''),
     );
 
     const sec = SECTION_PRESETS.find((s) => s.id === params.sectionId)!;
@@ -335,10 +353,9 @@ export function buildBeamPanel(
 function step(formula: string, detail: string): HTMLDivElement {
   const d = document.createElement('div');
   d.className = 'explain-step';
+  // P15: rumus+substitusi satu baris monospace — ringkas, tak bertumpuk.
   const f = document.createElement('code');
-  f.textContent = formula;
-  const t = document.createElement('span');
-  t.textContent = detail;
-  d.append(f, t);
+  f.textContent = `${formula}  —  ${detail}`;
+  d.append(f);
   return d;
 }

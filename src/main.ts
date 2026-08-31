@@ -257,6 +257,12 @@ async function main(): Promise<void> {
   hint.className = 'orbit-hint';
   hint.textContent = 'Drag untuk memutar · scroll untuk zoom';
   document.body.append(hint);
+
+  // P13: hint keyboard permanen — discoverability shortcut.
+  const kbdHint = document.createElement('div');
+  kbdHint.className = 'kbd-hint';
+  kbdHint.innerHTML = '<kbd>R</kbd> reset view · <kbd>Space</kbd> ulang animasi';
+  document.body.append(kbdHint);
   const killHint = (): void => {
     hint.classList.add('hide');
     document.getElementById('canvas3d')?.removeEventListener('pointerdown', killHint);
